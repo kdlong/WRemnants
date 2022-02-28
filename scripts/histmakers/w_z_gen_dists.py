@@ -55,6 +55,8 @@ axis_chargeZgen = hist.axis.Integer(
 axis_l_eta_gen = hist.axis.Regular(48, -2.4, 2.4, name = "prefsr_lepton_eta_gen")
 axis_l_pt_gen = hist.axis.Regular(29, 26., 55., name = "prefsr_lepton_pt_gen")
 axes_l_gen = [axis_l_eta_gen, axis_l_pt_gen]
+wprocs = ["WplusmunuPostVFP", "WminusmunuPostVFP", "WminustaunuPostVFP", "WplustaunuPostVFP"]
+zprocs = ["ZmumuPostVFP", "ZtautauPostVFP"]
 
 wprocs_bugged = [
     "WplusmunuPostVFP", 
@@ -105,6 +107,7 @@ def build_graph(df, dataset):
 #    for pdf in args.pdfs:
 #        results.extend(theory_tools.define_and_make_pdf_hists(df, nominal_axes, nominal_cols, pdfset=pdf))
 
+<<<<<<< HEAD
     if not dataset.is_data:
         df = wremnants.define_prefsr_vars(df)
         df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
@@ -130,6 +133,25 @@ def build_graph(df, dataset):
     time_process_end = time.time()
     process_time = time_process_end - time_process_start
     print("Time it takes to process ", dataset.name, ": ", process_time)
+    df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
+    helicity_moments_scale = df.HistoBoost("helicity_moments_scale", nominal_axes, [*nominal_cols, "helicity_moments_scale_tensor"], tensor_axes = [wremnants.axis_helicity, *wremnants.scale_tensor_axes])
+    results.append(helicity_moments_scale)
+
+    if dataset.name == 'WplusmunuPostVFP':
+        df = df.Define('ptPrefsrMuon', 'genlanti.pt()')
+        df = df.Define('etaPrefsrMuon', 'genlanti.eta()')
+        print("gen info created")
+    elif dataset.name == 'WminusmunuPostVFP':
+        df = df.Define('ptPrefsrMuon', 'genl.pt()')
+        df = df.Define('etaPrefsrMuon', 'genl.eta()')
+        print("gen info created")
+    if dataset.name in ['WplusmunuPostVFP', 'WminusmunuPostVFP']:
+        cols_l_gen = ['etaPrefsrMuon', 'ptPrefsrMuon']
+        nominal_cols = [*nominal_cols, *cols_l_gen]
+        nominal_axes = [*nominal_axes, axis_l_eta_gen, axis_l_pt_gen]
+        print("gen info accessed")
+    nominal_gen = df.HistoBoost("nominal_gen", nominal_axes, [*nominal_cols, "weight"])
+    results.append(nominal_gen)
 
     return results, weightsum
 

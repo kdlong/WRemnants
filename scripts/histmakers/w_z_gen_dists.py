@@ -42,7 +42,7 @@ axis_ptVgen = hist.axis.Variable(
     list(range(41))+[45, 50, 55, 60, 75, 100], name = "ptVgen"
 )
 
-#axis_ptVgen = hist.axis.Regular(120, 0., 120., name="ptVgen")
+axis_ptVgen = hist.axis.Regular(120, 0., 120., name="ptVgen")
 
 axis_chargeWgen = hist.axis.Regular(
     2, -2, 2, name="chargeVgen", underflow=False, overflow=False
@@ -96,10 +96,6 @@ def build_graph(df, dataset):
         df = df.Define("weight", "std::copysign(1.0, genWeight)")
     weightsum = df.SumAndCount("weight")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 069ceee (fixing gen weights)
     if dataset.name in zprocs:
         nominal_axes = [axis_massZgen, axis_absYVgen, axis_ptVgen, axis_chargeZgen]
     else:
@@ -110,15 +106,10 @@ def build_graph(df, dataset):
 #    for pdf in args.pdfs:
 #        results.extend(theory_tools.define_and_make_pdf_hists(df, nominal_axes, nominal_cols, pdfset=pdf))
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 069ceee (fixing gen weights)
     if not dataset.is_data:
         df = wremnants.define_prefsr_vars(df)
         df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
         helicity_moments_scale = df.HistoBoost("helicity_moments_scale", nominal_axes, [*nominal_cols, "helicity_moments_scale_tensor"], tensor_axes = [wremnants.axis_helicity, *wremnants.scale_tensor_axes])
-<<<<<<< HEAD
 
         results.append(helicity_moments_scale)
 
@@ -143,19 +134,16 @@ def build_graph(df, dataset):
     df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
     helicity_moments_scale = df.HistoBoost("helicity_moments_scale", nominal_axes, [*nominal_cols, "helicity_moments_scale_tensor"], tensor_axes = [wremnants.axis_helicity, *wremnants.scale_tensor_axes])
     results.append(helicity_moments_scale)
-=======
-        results.append(helicity_moments_scale)
->>>>>>> 069ceee (fixing gen weights)
 
     if dataset.name == 'WplusmunuPostVFP':
         df = df.Define('ptPrefsrMuon', 'genlanti.pt()')
         df = df.Define('etaPrefsrMuon', 'genlanti.eta()')
         print("gen info created")
-    elif dataset.name == 'WminusmunuPostVFP':
+    elif dataset.name == 'WminusmunuPostVFP' or 'ZmumuPostVFP' in dataset.name:
         df = df.Define('ptPrefsrMuon', 'genl.pt()')
         df = df.Define('etaPrefsrMuon', 'genl.eta()')
         print("gen info created")
-    if dataset.name in ['WplusmunuPostVFP', 'WminusmunuPostVFP']:
+    if dataset.name in ['WplusmunuPostVFP', 'WminusmunuPostVFP'] or 'ZmumuPostVFP' in dataset.name:
         nominal_cols = [*nominal_cols, 'etaPrefsrMuon', 'ptPrefsrMuon']
         nominal_axes = [*nominal_axes, axis_l_eta_gen, axis_l_pt_gen]
         print("gen info accessed")
@@ -167,7 +155,7 @@ def build_graph(df, dataset):
 
 resultdict = narf.build_and_run(datasets, build_graph)
 
-fname = "w_z_gen_dists_slc7.pkl.lz4"
+fname = "w_z_gen_dists_fine_bin.pkl.lz4"
 
 print("writing output")
 with lz4.frame.open(fname, "wb") as f:
@@ -213,17 +201,6 @@ z_coeffs_bugged = wremnants.moments_to_angular_coeffs(z_moments_bugged)
 w_coeffs_bugged = wremnants.moments_to_angular_coeffs(w_moments_bugged)
 z_coeffs_bugfix = wremnants.moments_to_angular_coeffs(z_moments_bugfix)
 w_coeffs_bugfix = wremnants.moments_to_angular_coeffs(w_moments_bugfix)
-
-with lz4.frame.open("z_coeffs_bugged.pkl.lz4", "wb") as f:
-    pickle.dump(z_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("w_coeffs_bugged.pkl.lz4", "wb") as f:
-    pickle.dump(w_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("z_coeffs_bugfix.pkl.lz4", "wb") as f:
-    pickle.dump(z_coeffs_bugfix, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("w_coeffs_bugfix.pkl.lz4", "wb") as f:
 
 with lz4.frame.open("z_coeffs_bugged_fine_bin.pkl.lz4", "wb") as f:
     pickle.dump(z_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)

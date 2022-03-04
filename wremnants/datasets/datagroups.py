@@ -31,6 +31,9 @@ class datagroups(object):
             return 1
         return self.lumi*1000*proc.xsec/self.results[proc.name]["weight_sum"]
 
+    def setLumi(self, lumi):
+        self.lumi = lumi
+
     def setHists(self, baseName, syst, procsToRead=None, label=None, nominalIfMissing=True, 
             selectSignal=True, forceNonzero=True):
         if label == None:

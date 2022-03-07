@@ -4,7 +4,8 @@
 
 Activate the singularity image (before getting the code or running it)
 ```bash
-singularity run /scratch/singularity/pythonrootarchdevrolling # needs to be on lxplus8s10
+singularity run /scratch/singularity/pythonrootarchdevrolling # for lxplus8s10
+singularity run /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/bendavid/cmswmassdocker/wmassdevrolling\:latest/ # for MIT-submit
 ```
     
 Get the code (after forking from the central WMass repository)

@@ -96,10 +96,6 @@ def build_graph(df, dataset):
         df = df.Define("weight", "std::copysign(1.0, genWeight)")
     weightsum = df.SumAndCount("weight")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 069ceee (fixing gen weights)
     if dataset.name in zprocs:
         nominal_axes = [axis_massZgen, axis_absYVgen, axis_ptVgen, axis_chargeZgen]
     else:
@@ -110,15 +106,10 @@ def build_graph(df, dataset):
 #    for pdf in args.pdfs:
 #        results.extend(theory_tools.define_and_make_pdf_hists(df, nominal_axes, nominal_cols, pdfset=pdf))
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 069ceee (fixing gen weights)
     if not dataset.is_data:
         df = wremnants.define_prefsr_vars(df)
         df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
         helicity_moments_scale = df.HistoBoost("helicity_moments_scale", nominal_axes, [*nominal_cols, "helicity_moments_scale_tensor"], tensor_axes = [wremnants.axis_helicity, *wremnants.scale_tensor_axes])
-<<<<<<< HEAD
 
         results.append(helicity_moments_scale)
 
@@ -143,9 +134,6 @@ def build_graph(df, dataset):
     df = df.Define("helicity_moments_scale_tensor", "wrem::makeHelicityMomentScaleTensor(csSineCosThetaPhi, scaleWeights_tensor, weight)")
     helicity_moments_scale = df.HistoBoost("helicity_moments_scale", nominal_axes, [*nominal_cols, "helicity_moments_scale_tensor"], tensor_axes = [wremnants.axis_helicity, *wremnants.scale_tensor_axes])
     results.append(helicity_moments_scale)
-=======
-        results.append(helicity_moments_scale)
->>>>>>> 069ceee (fixing gen weights)
 
     if dataset.name == 'WplusmunuPostVFP':
         df = df.Define('ptPrefsrMuon', 'genlanti.pt()')

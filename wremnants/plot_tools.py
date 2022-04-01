@@ -112,10 +112,10 @@ def makePlotWithRatioToRef(hists, labels, colors, xlabel="", ylabel="Events/bin"
     
     if len(hists) > 1:
         hep.histplot(
-            ratio_hists,
+                ratio_hists,
             histtype="step",
-            color=colors,
-            label=labels,
+            color=colors[ratio_plots_starting_idx:],
+            label=labels[ratio_plots_starting_idx:],
             yerr=False,
             stack=False,
             ax=ax2,

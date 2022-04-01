@@ -42,7 +42,7 @@ axis_ptVgen = hist.axis.Variable(
     list(range(41))+[45, 50, 55, 60, 75, 100], name = "ptVgen"
 )
 
-#axis_ptVgen = hist.axis.Regular(120, 0., 120., name="ptVgen")
+axis_ptVgen = hist.axis.Regular(120, 0., 120., name="ptVgen")
 
 axis_chargeWgen = hist.axis.Regular(
     2, -2, 2, name="chargeVgen", underflow=False, overflow=False
@@ -155,7 +155,7 @@ def build_graph(df, dataset):
 
 resultdict = narf.build_and_run(datasets, build_graph)
 
-fname = "w_z_gen_dists_slc7.pkl.lz4"
+fname = "w_z_gen_dists_fine_bin.pkl.lz4"
 
 print("writing output")
 with lz4.frame.open(fname, "wb") as f:
@@ -201,17 +201,6 @@ z_coeffs_bugged = wremnants.moments_to_angular_coeffs(z_moments_bugged)
 w_coeffs_bugged = wremnants.moments_to_angular_coeffs(w_moments_bugged)
 z_coeffs_bugfix = wremnants.moments_to_angular_coeffs(z_moments_bugfix)
 w_coeffs_bugfix = wremnants.moments_to_angular_coeffs(w_moments_bugfix)
-
-with lz4.frame.open("z_coeffs_bugged.pkl.lz4", "wb") as f:
-    pickle.dump(z_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("w_coeffs_bugged.pkl.lz4", "wb") as f:
-    pickle.dump(w_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("z_coeffs_bugfix.pkl.lz4", "wb") as f:
-    pickle.dump(z_coeffs_bugfix, f, protocol = pickle.HIGHEST_PROTOCOL)
-
-with lz4.frame.open("w_coeffs_bugfix.pkl.lz4", "wb") as f:
 
 with lz4.frame.open("z_coeffs_bugged_fine_bin.pkl.lz4", "wb") as f:
     pickle.dump(z_coeffs_bugged, f, protocol = pickle.HIGHEST_PROTOCOL)

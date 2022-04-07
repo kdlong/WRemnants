@@ -37,8 +37,6 @@ zprocs = ["ZmumuPostVFP", "ZtautauPostVFP"]
 # standard regular axes
 axis_eta = hist.axis.Regular(48, -2.4, 2.4, name = "eta")
 axis_pt = hist.axis.Regular(29, 26., 55., name = "pt")
-axis_gen_eta = hist.axis.Regular(48, -2.4, 2.4, name = "gen_eta")
-axis_gen_pt = hist.axis.Regular(29, 26., 55., name = "gen_pt")
 
 # categorical axes in python bindings always have an overflow bin, so use a regular
 # axis for the charge
@@ -48,7 +46,6 @@ axis_passIso = hist.axis.Boolean(name = "passIso")
 axis_passMT = hist.axis.Boolean(name = "passMT")
 
 nominal_axes = [axis_eta, axis_pt, axis_charge, axis_passIso, axis_passMT]
-gen_axes = [axis_gen_eta, axis_gen_pt]
 
 axis_ptVgen = qcdScaleByHelicity_Whelper.hist.axes["ptVgen"]
 axis_absYVgen = hist.axis.Variable(

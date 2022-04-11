@@ -55,8 +55,6 @@ axis_chargeZgen = hist.axis.Integer(
 axis_l_eta_gen = hist.axis.Regular(48, -2.4, 2.4, name = "prefsr_lepton_eta_gen")
 axis_l_pt_gen = hist.axis.Regular(29, 26., 55., name = "prefsr_lepton_pt_gen")
 axes_l_gen = [axis_l_eta_gen, axis_l_pt_gen]
-wprocs = ["WplusmunuPostVFP", "WminusmunuPostVFP", "WminustaunuPostVFP", "WplustaunuPostVFP"]
-zprocs = ["ZmumuPostVFP", "ZtautauPostVFP"]
 
 wprocs_bugged = [
     "WplusmunuPostVFP", 

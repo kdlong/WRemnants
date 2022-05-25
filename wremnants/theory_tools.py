@@ -286,7 +286,7 @@ def pdfNamesAsymHessian(entries):
     return pdfNames
 
 def pdfSymmetricShifts(hdiff, axis_name):
-    sq = hh.multiplyHists(hdiff, hdiff)
+    sq = hh.multiplyHists(hdiff, hdiff, transpose=False)
     ss = sq[{axis_name : hist.sum}]
     rss = hh.sqrtHist(ss)
     return rss, rss

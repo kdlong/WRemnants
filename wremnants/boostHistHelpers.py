@@ -6,14 +6,24 @@ from functools import reduce
 def valsAndVariances(h1, h2, allowBroadcast=True, transpose=True):
     if not allowBroadcast and len(h1.axes) != len(h2.axes):
         raise ValueError("Incompatible hists for math operation")
-    if len(h1.axes) == len(h2.axes):
-        return (h1.values(flow=True), h2.values(flow=True), h1.variances(flow=True), h2.variances(flow=True))
+
+    h1vals = h1.values(flow=True)
+    h2vals = h2.values(flow=True)
+    if h1._storage_type() == hist.storage.Weight() and h2._storage_type() == hist.storage.Weight():
+        h1vars = h1.variances(flow=True)
+        h2vars = h2.variances(flow=True)
     else:
-        outshape = h1.view(flow=True).shape if len(h1.shape) > len(h2.shape) else h2.view(flow=True).shape
+        h1vars = np.zeros_like(h1vals)
+        h2vars = np.zeros_like(h2vals)
+
+    if len(h1.axes) == len(h2.axes):
+        return (h1vals, h2vals, h1vars, h2vars)
+    else:
+        outshape = h1vals.shape if len(h1vals.shape) > len(h2vals.shape) else h2vals.shape
         # The transpose is because numpy works right to left in broadcasting, and we've put the
         # syst axis on the right
-        res = [np.broadcast_to(x.T if transpose else x, outshape[::-1] if transpose else outshape) for x in \
-                [h1.values(flow=True), h2.values(flow=True), h1.variances(flow=True), h2.variances(flow=True)]]
+        res = [np.broadcast_to(x.T if transpose else x, outshape[::-1] if transpose else outshape) \
+                for x in (h1vals, h2vals, h1vars, h2vars)]
         return [x.T for x in res] if transpose else res
 
 def broadcastOutHist(h1, h2):
@@ -74,8 +84,11 @@ def addHists(h1, h2, allowBroadcast=True):
     h1vals,h2vals,h1vars,h2vars = valsAndVariances(h1, h2, allowBroadcast)
     outh = h1 if not allowBroadcast else broadcastOutHist(h1, h2)
 
-    newh = hist.Hist(*outh.axes, storage=hist.storage.Weight(),
-            data=np.stack((h1vals+h2vals, h1vars+h2vars), axis=-1))
+    if h1._storage_type() == hist.storage.Weight():
+        newh = hist.Hist(*outh.axes, storage=hist.storage.Weight(),
+                data=np.stack((h1vals+h2vals, h1vars+h2vars), axis=-1))
+    else:
+        newh = hist.Hist(*outh.axes, storage=h1._storage_type(), data=h1vals+h2vals)
     return newh
 
 def sumHists(hists):

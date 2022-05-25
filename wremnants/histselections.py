@@ -41,7 +41,7 @@ def signalHistLowPileupZ(h):
     return h
 
 def unrolledHist(h, obs=["pt", "eta"]):
-    bins = np.multiply(*[a.size for a in h.axes[:2]])
-    newh = hist.Hist(hist.axis.Regular(bins, 0, bins), storage=hist.storage.Weight())
+    bins = np.multiply(*[a.size for a in [h.axes[i] for i in obs]])
+    newh = hist.Hist(hist.axis.Regular(bins, 0, bins), storage=h._storage_type())
     newh[...] = np.ravel(h.project(*obs))
     return newh

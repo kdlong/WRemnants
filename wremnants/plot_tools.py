@@ -102,9 +102,9 @@ def makeStackPlotWithRatio(
     return fig
 
 def makePlotWithRatioToRef(
-    hists, labels, colors, xlabel="", ylabel="Events/bin", rlabel="bugfix/bugged",
+    hists, labels, colors, xlabel="", ylabel="Events/bin", rlabel="x/nominal",
     rrange=[0.9, 1.1], ymax=None, xlim=None, nlegcols=2, binwnorm=None, alpha=1.,
-    baseline=True, data=False, autorrange=None, grid = False
+    baseline=True, data=None, data_label=None, autorrange=None, grid = False, fill_between=False
 ):
     # nominal is always at first, data is always at last, if included
     ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001) for h in hists[not baseline:]]
@@ -121,39 +121,44 @@ def makePlotWithRatioToRef(
         alpha=alpha,
     )
     
-    if len(hists) > 1:
-        hep.histplot(
-            ratio_hists[:len(ratio_hists) - data],
-            histtype="step",
-            color=colors[(not baseline):(len(colors)- data)],
-            label=labels[(not baseline):(len(labels)- data)],
-            yerr=False,
-            stack=False,
-            ax=ax2,
-            alpha=alpha,
-        )
     if data:
         hep.histplot(
-            hists[-1],
+            data,
             histtype="errorbar",
-            color=colors[-1],
-            label=labels[-1],
+            color="black",
+            label=data_label,
             stack=False,
             ax=ax1,
             binwnorm=binwnorm,
-            alpha=alpha,
         )
         hep.histplot(
             ratio_hists[-1],
             histtype="errorbar",
-            color=colors[-1],
-            label=labels[-1],
+            color="black",
+            label=data_label,
             xerr=False,
             yerr=False,
             stack=False,
             ax=ax2,
-            alpha=alpha,
         )
 
+        if not fill_between or baseline:
+            endidx = len(hists) if not fill_between else 1
+            hep.histplot(
+                ratio_hists[not baseline:endidx],
+                histtype="step",
+                color=colors[not baseline:endidx],
+                label=labels[not baseline:endidx],
+                yerr=False,
+                stack=False,
+                ax=ax2,
+                alpha=alpha,
+            )
+        if fill_between and len(hists) % 2:
+            for h1,h2,color in zip(ratio_hists[1::2], ratio_hists[2::2], colors[1::2]):
+                ax2.fill_between(h1.axes[0].edges[:-1], h1.values(), h2.values(), step='mid', color=color, alpha=alpha)
+        else:
+            raise ValueError("Fill between assumes an even number of variations, ordered up, down, up, down")
+        
     addLegend(ax1, nlegcols)
     return fig

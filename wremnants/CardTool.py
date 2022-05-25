@@ -288,6 +288,7 @@ class CardTool(object):
         for systAxName in ["systIdx", "tensor_axis_0"]:
             if systAxName in [ax.name for ax in hdata.axes]:
                 hdata = hdata[{systAxName : 0 }] 
+
         self.writeHist(hdata, self.pseudoData+"_sum")
 
     def writeForProcesses(self, syst, processes, label):

@@ -14,19 +14,19 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
 ):
     hax = href.axes[0]
     width = math.ceil(hax.size/400)
-    fig = plt.figure(figsize=(8*width,8))
+    fig = plt.figure(figsize=(16*width,16))
     ax1 = fig.add_subplot(4, 1, (1, 3)) 
     ax2 = fig.add_subplot(4, 1, 4) 
 
-    ax2.set_xlabel(xlabel)
+    ax2.set_xlabel(xlabel, fontsize=60)
     ax1.set_xlabel(" ")
-    ax1.set_ylabel(ylabel)
-    ax1.set_xticklabels([])
+    ax1.set_ylabel(ylabel, fontsize=60)
+    ax1.set_xticklabels([], fontsize=60)
     if not xlim:
         xlim = [href.axes[0].edges[0], href.axes[0].edges[href.axes[0].size-1]]
     ax1.set_xlim(xlim)
     ax2.set_xlim(xlim)
-    ax2.set_ylabel(rlabel, fontsize=22)
+    ax2.set_ylabel(rlabel, fontsize=60)
     ax2.set_ylim(rrange)
     if ylim:
         ax1.set_ylim(ylim)
@@ -35,6 +35,8 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     if grid_on_main_plot:  ax1.grid(which = "both")
     if grid_on_ratio_plot: ax2.grid(which = "both")
     if plot_title: ax1.set_title(plot_title)
+    ax1.tick_params(axis='both', which='major', labelsize=50)
+    ax2.tick_params(axis='both', which='major', labelsize=50)
     return fig,ax1,ax2
 
 def addLegend(ax, ncols=2, extra_text=None):
@@ -54,7 +56,7 @@ def addLegend(ax, ncols=2, extra_text=None):
         labels.insert(math.floor(len(labels)/2), ' ')
     #handles= reversed(handles)
     #labels= reversed(labels)
-    ax.legend(handles=handles, labels=labels, prop={'size' : 20*(0.7 if shape == 1 else 1.3)}, ncol=ncols, loc='upper right')
+    ax.legend(handles=handles, labels=labels, prop={'size' : 40*(0.7 if shape == 1 else 1.3)}, ncol=ncols, loc='upper right')
 
 def makeStackPlotWithRatio(
     histInfo, stackedProcs, histName="nominal", unstacked=None, 
@@ -78,23 +80,25 @@ def makeStackPlotWithRatio(
     
     if unstacked:
         if type(unstacked) == str: unstacked = unstacked.split(",")
-        for proc in unstacked:
-            unstack = action(histInfo[proc][histName][select])
+        for i, proc in enumerate(unstacked):
+            unstack = action(histInfo[proc][label][select])
+            isdata = "data" in proc.lower()
             hep.histplot(
                 unstack,
-                yerr=True if proc == "Data" else False,
-                histtype="errorbar" if (proc == "Data" or re.search("^pdf.*_sum", proc)) else "step",
+                yerr=True if isdata else False,
+                histtype="errorbar" if isdata else "step",
                 color=histInfo[proc]["color"],
                 label=histInfo[proc]["label"],
                 ax=ax1,
+                zorder=1 if i == 0 else -1,
                 binwnorm=binwnorm,
             )
             hep.histplot(
                 hh.divideHists(unstack, sum(stack), cutoff=0.01),
-                histtype="errorbar" if (proc == "Data" or re.search("^pdf.*_sum", proc)) else "step",
+                histtype="errorbar" if isdata else "step",
                 color=histInfo[proc]["color"],
                 label=histInfo[proc]["label"],
-                yerr=True if proc == "Data" else False,
+                yerr=True if isdata else False,
                 ax=ax2
             )
 
@@ -111,10 +115,10 @@ def makePlotWithRatioToRef(
     fig, ax1, ax2 = figureWithRatio(hists[0], xlabel, ylabel, [0, ymax] if ymax else None, rlabel, rrange, xlim=xlim, grid_on_ratio_plot = grid)
     
     hep.histplot(
-        hists[:len(hists) - data],
+        hists,
         histtype="step",
-        color=colors[:(len(colors)- data)],
-        label=labels[:(len(labels)- data)],
+        color=colors,
+        label=labels,
         stack=False,
         ax=ax1,
         binwnorm=binwnorm,
@@ -157,8 +161,6 @@ def makePlotWithRatioToRef(
         if fill_between and len(hists) % 2:
             for h1,h2,color in zip(ratio_hists[1::2], ratio_hists[2::2], colors[1::2]):
                 ax2.fill_between(h1.axes[0].edges[:-1], h1.values(), h2.values(), step='mid', color=color, alpha=alpha)
-        else:
-            raise ValueError("Fill between assumes an even number of variations, ordered up, down, up, down")
         
     addLegend(ax1, nlegcols)
     return fig

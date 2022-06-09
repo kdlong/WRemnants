@@ -15,7 +15,7 @@ template <size_t ETABINS, size_t T>
 Eigen::TensorFixedSize<double, Eigen::Sizes<2, ETABINS>> dummyScaleFromMassWeights(double nominal_weight,
     Eigen::TensorFixedSize<double, Eigen::Sizes<T>>& weights, double eta, double scale, bool isW=true) {
     const double refMass = isW ? 80351.81229 : 91153.50974;
-    const size_t centralIdx = 10;
+    const int centralIdx = 10;
     const double scaleMeV = refMass*scale;
     const int step10MeV = std::floor(scaleMeV/10.)+1;
     if (centralIdx-step10MeV < 0)

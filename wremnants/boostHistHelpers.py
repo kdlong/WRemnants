@@ -66,6 +66,12 @@ def sqrtHist(h):
     rooth[...] = np.stack((rootval, newvar), axis=-1)
     return rooth
 
+def rssFromVariationHist(h, syst_axis_name, scale=1.):
+    hdiff = addHists(h, -1*h[{syst_axis_name : 0}])*scale
+    hsum = hdiff[{syst_axis_name : hist.sum}]
+    hss = multiplyHists(hsum, hsum, False, False)
+    return sqrtHist(hss)
+
 def multiplyWithVariance(vals1, vals2, vars1, vars2):
     val = vals1*vals2
     var = val*val*sum(relVariances(vals1, vals2, vars1, vars2))

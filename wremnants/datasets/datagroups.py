@@ -24,14 +24,14 @@ class datagroups(object):
         self.lumi = None
         if self.datasets and self.results:
             self.data = [x for x in self.datasets.values() if x.is_data]
-            if self.data:
+            if self.data and not combine:
                 self.lumi = sum([self.results[x.name]["lumi"] for x in self.data if x.name in self.results])
         self.groups = {}
 
-        if not self.lumi:
-            self.lumi = 1
-            
         self.nominalName = "nominal"
+
+    def setLumi(self, lumi):
+        self.lumi = lumi
 
     def processScaleFactor(self, proc):
         if proc.is_data:
@@ -57,7 +57,7 @@ class datagroups(object):
                     foundExact = True
                 except ValueError as e:
                     if nominalIfMissing:
-                        logging.info(f"{str(e)}. Using nominal hist {self.nominalName} instead")
+                        logging.warning(f"{str(e)}. Using nominal hist {self.nominalName} instead")
                         h = self.readHist(self.nominalName, member, "", scaleOp=scale, forceNonzero=forceNonzero)
                     else:
                         logging.warning(str(e))
@@ -70,7 +70,7 @@ class datagroups(object):
             raise ValueError(f"Did not find systematic {syst} for any processes!")
 
     #TODO: Better organize to avoid duplicated code
-    def setHistsCombine(self, baseName, syst, channel, procsToRead=None, excluded_procs=[], label=None):
+    def setHistsCombine(self, baseName, syst, channel, procsToRead=None, excluded_procs=[], label=None, nominalIfMissing=True):
         if type(excluded_procs) == str: excluded_procs = excluded_procs.split(",")
         #TODO Set axis names properly
         if baseName == "x":
@@ -84,15 +84,12 @@ class datagroups(object):
         for procName in procsToRead:
             group = self.groups[procName]
             group[label] = None
-            name = self.histNameCombine(procName, baseName, syst, channel)
-            rthist = self.rtfile.Get(name)
-            if not rthist:
-                raise RuntimeError(f"Failed to load hist {name} from file")
-            group[label] = narf.root_to_hist(rthist, axis_names=axisNames)
+            h = self.readHistCombine(baseName, procName, syst, channel, axisNames, nominalIfMissing)
+            group[label] = h 
 
     def histNameCombine(self, procName, baseName, syst, channel):
         name = f"{baseName}_{procName}"
-        if syst != "nominal":
+        if syst not in ["", "nominal"]:
             name += "_"+syst
         if channel:
             name += "_"+channel
@@ -103,7 +100,8 @@ class datagroups(object):
     def loadHistsForDatagroups(self, baseName, syst, procsToRead=None, excluded_procs=None, channel="", label="", nominalIfMissing=True,
             selectSignal=True, forceNonzero=True, pseudodata=False):
         if self.rtfile and self.combine:
-            self.setHistsCombine(baseName, syst, channel, procsToRead, excluded_procs, label)
+            self.setHistsCombine(baseName, syst, channel=channel, procsToRead=procsToRead, excluded_procs=excluded_procs, 
+                    label=label, nominalIfMissing=nominalIfMissing)
         else:
             self.setHists(baseName, syst, procsToRead, label, nominalIfMissing, selectSignal, forceNonzero)
 
@@ -124,23 +122,24 @@ class datagroups(object):
     def processes(self):
         return self.groups.keys()
 
-    def addSummedProc(self, refname, name, label, color="red", exclude=["Data"]):
-        self.loadHistsForDatagroups(refname, syst=name)
+    def addSummedProc(self, refname, name, label, histname="", color="red", procsToRead=None, channel="", nominalIfMissing=True):
+        if not histname:
+            histname = name
+        self.loadHistsForDatagroups(refname, syst=name, label=name, channel=channel, procsToRead=procsToRead, nominalIfMissing=nominalIfMissing)
         self.groups[name] = dict(
             label=label,
             color=color,
             members=[],
         )
-        self.groups[name][refname] = sum([self.groups[x][name] for x in self.groups.keys() if x not in exclude+[name]])
+        self.groups[name][histname] = sum([self.groups[x][name] for x in procsToRead])
 
-    def copyWithAction(self, action, name, refproc, refname, label, color):
+    def copyWithAction(self, action, name, refproc, refname, label=None, color=None):
         self.groups[name] = dict(
-            label=label,
-            color=color,
+            label=label if label else self.groups[refproc]["label"],
+            color=color if color else self.groups[refproc]["color"],
             members=[],
         )
         self.groups[name][refname] = action(self.groups[refproc][refname])
-
 
 class datagroups2016(datagroups):
     def __init__(self, infile, combine=False, wlike=False, pseudodata_pdfset = None):
@@ -233,3 +232,14 @@ class datagroups2016(datagroups):
         if scaleOp:
             scale = scale*scaleOp(proc)
         return h*scale
+
+    def readHistCombine(self, baseName, procName, syst, channel, axisNames, nominalIfMissing=True):
+        name = self.histNameCombine(procName, baseName, syst, channel)
+        rthist = self.rtfile.Get(name)
+        if not rthist and nominalIfMissing:
+            logging.warning(f"Failed to find hist {name} in ROOT file. Using nominal hist {self.nominalName} instead")
+            name = self.histNameCombine(procName, baseName, "nominal", channel)
+            rthist = self.rtfile.Get(name)
+        if not rthist:
+            raise RuntimeError(f"Failed to load hist {name} from file")
+        return narf.root_to_hist(rthist, axis_names=axisNames)

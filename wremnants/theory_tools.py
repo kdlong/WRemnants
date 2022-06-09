@@ -280,9 +280,10 @@ def pdfNames(cardTool, pdf, skipFirst=True):
         names[size*2-1] = ""
     return names
 
-def pdfNamesAsymHessian(entries):
+def pdfNamesAsymHessian(entries, pdfName):
     pdfNames = [""] # Skip central weight
-    pdfNames.extend(["pdf{i}{shift}".format(i=int(j/2), shift="Up" if j % 2 else "Down") for j in range(entries-1)])
+    pdfNames.extend(["pdf{i}{name}{shift}".format(name=pdfName.replace("pdf", ""),
+        i=int(j/2), shift="Up" if j % 2 else "Down") for j in range(entries-1)])
     return pdfNames
 
 def pdfSymmetricShifts(hdiff, axis_name):

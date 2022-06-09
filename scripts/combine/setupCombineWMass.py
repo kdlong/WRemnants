@@ -61,6 +61,8 @@ signal_samples_inctau = list(filter(lambda x: x[0] == ("Z" if args.wlike else "W
 logging.info(f"Single V samples: {single_v_samples}")
 logging.info(f"Signal samples: {signal_samples}")
 
+if args.pseudoData:
+    cardTool.setPseudodata(args.pseudoData, writePerProcess=True)
 
 pdfInfo = theory_tools.pdf_info_map(signal_samples[0], args.pdf)
 pdfName = pdfInfo["name"]
@@ -85,8 +87,7 @@ else:
         mirror=False,
         group=pdfName,
         systAxes=["tensor_axis_0"],
-        outNames=theory_tools.pdfNamesAsymHessian(pdfInfo["entries"]),
-        passToFakes=passSystToFakes,
+        outNames=theory_tools.pdfNamesAsymHessian(pdfInfo["entries"], pdfName),
         scale=pdfInfo["scale"] if "scale" in pdfInfo else 1,
     )
 
@@ -212,7 +213,7 @@ cardTool.addSystematic("massWeight",
 
 
 # TODO: This needs to be handled by shifting the norm before subtracting from the fakes
-#cardTool.addSystematic("lumi", outNames=["", "lumiDown", "lumiUp"], group="luminosity")
+cardTool.addLnNSystematic("CMS_lumi", processes=cardTool.allMCProcesses(), size=1.025)
 if not args.wlike:
     cardTool.addLnNSystematic("CMS_Fakes", processes=[args.qcdProcessName], size=1.05)
     cardTool.addLnNSystematic("CMS_Top", processes=["Top"], size=1.06)

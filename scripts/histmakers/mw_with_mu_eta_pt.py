@@ -258,7 +258,7 @@ def build_graph(df, dataset):
                 results.append(dummyMuonScaleSyst)
 
             df = df.Define("Muon_cvhbsMomCov", "wrem::splitNestedRVec(Muon_cvhbsMomCov_Vals, Muon_cvhbsMomCov_Counts)")
-
+            df = df.Define("unity", "1.0")
             df = df.Define("muonScaleSyst_responseWeights_tensor", calibration_uncertainty_helper,
                            ["Muon_correctedPt",
                             "Muon_correctedEta",
@@ -272,25 +272,58 @@ def build_graph(df, dataset):
                             "GenPart_phi",
                             "GenPart_pdgId",
                             "GenPart_statusFlags",
-                            "nominal_weight"])
+                            #"nominal_weight"
+                            "unity"
+                           ])
 
             dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
             results.append(dummyMuonScaleSyst_responseWeights)
 
-            df = df.Define("goodMuons_pt0_scaleUp", "goodMuons_pt0 * 1.0001")
-            df = df.Define("goodMuons_pt0_scaleDn", "goodMuons_pt0 / 1.0001")
-            muonScaleVariationUp = df.HistoBoost(
-                "muonScaleVariationUp", 
+            df = df.Define("smearing_weights_down", "muonScaleSyst_responseWeights_tensor(0,0)")
+            df = df.Define("smearing_weights_up", "muonScaleSyst_responseWeights_tensor(0,1)")
+
+            axis_smearing_weight = hist.axis.Regular(200, 0.9, 1.1, underflow=True, overflow=True, name = "smearing_weight")
+            smearing_weights_down = df.HistoBoost("smearing_weights_down", [*nominal_axes,axis_smearing_weight], [*nominal_cols, "smearing_weights_down"])
+            smearing_weights_up = df.HistoBoost("smearing_weights_up", [*nominal_axes,axis_smearing_weight], [*nominal_cols, "smearing_weights_up"])
+            results.append(smearing_weights_down)
+            results.append(smearing_weights_up)
+
+            df = df.Define("goodMuons_pt0_scaleUp_mil", "goodMuons_pt0 * 1.001")
+            df = df.Define("goodMuons_pt0_scaleDn_mil", "goodMuons_pt0 / 1.001")
+            df = df.Define("goodMuons_pt0_scaleUp_tenthmil", "goodMuons_pt0 * 1.0001")
+            df = df.Define("goodMuons_pt0_scaleDn_tenthmil", "goodMuons_pt0 / 1.0001")
+            muonScaleVariationUpMil = df.HistoBoost(
+                "muonScaleVariationUpMil", 
                 nominal_axes,
-                [nominal_cols[0], "goodMuons_pt0_scaleUp", *nominal_cols[2:], "nominal_weight"]
+                [nominal_cols[0], "goodMuons_pt0_scaleUp_mil", *nominal_cols[2:], "nominal_weight"]
             )
-            muonScaleVariationDn = df.HistoBoost(
-                "muonScaleVariationDn", 
+            muonScaleVariationDnMil = df.HistoBoost(
+                "muonScaleVariationDnMil", 
                 nominal_axes,
-                [nominal_cols[0], "goodMuons_pt0_scaleDn", *nominal_cols[2:], "nominal_weight"]
+                [nominal_cols[0], "goodMuons_pt0_scaleDn_mil", *nominal_cols[2:], "nominal_weight"]
             )
-            results.append(muonScaleVariationUp)
-            results.append(muonScaleVariationDn)
+            muonScaleVariationUpTenthmil = df.HistoBoost(
+                "muonScaleVariationUpTenthmil", 
+                nominal_axes,
+                [nominal_cols[0], "goodMuons_pt0_scaleUp_tenthmil", *nominal_cols[2:], "nominal_weight"]
+            )
+            muonScaleVariationDnTenthmil = df.HistoBoost(
+                "muonScaleVariationDnTenthmil", 
+                nominal_axes,
+                [nominal_cols[0], "goodMuons_pt0_scaleDn_tenthmil", *nominal_cols[2:], "nominal_weight"]
+            )
+            results.append(muonScaleVariationUpMil)
+            results.append(muonScaleVariationDnMil)
+            results.append(muonScaleVariationUpTenthmil)
+            results.append(muonScaleVariationDnTenthmil)
+
+            df = df.Define("nominal_weights_perse", "nominal_weight")
+            nominal_weights_hist = df.HistoBoost(
+                "nominal_weights_hist",
+                [*nominal_axes, axis_smearing_weight],
+                [*nominal_cols, "nominal_weights_perse"]
+            )
+            results.append(nominal_weights_hist)
 
     return results, weightsum
 

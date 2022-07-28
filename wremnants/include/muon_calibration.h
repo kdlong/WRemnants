@@ -220,7 +220,7 @@ public:
                       const RVec<float> &genPhis,
                       const RVec<int> &genPdgIds,
                       const RVec<int> &genStatusFlags,
-                      double nominal_weight = 1.0) const {
+                      double nominal_weight) const {
 
     //TODO move this into a helper
 

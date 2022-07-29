@@ -272,19 +272,33 @@ def build_graph(df, dataset):
                             "GenPart_phi",
                             "GenPart_pdgId",
                             "GenPart_statusFlags",
-                            #"nominal_weight"
-                            "unity"
+                            "nominal_weight"
                            ])
 
             dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
             results.append(dummyMuonScaleSyst_responseWeights)
 
-            df = df.Define("smearing_weights_down", "muonScaleSyst_responseWeights_tensor(0,0)")
-            df = df.Define("smearing_weights_up", "muonScaleSyst_responseWeights_tensor(0,1)")
+            df = df.Define("muonScaleSyst_smearingWeightsPerSe_tensor", calibration_uncertainty_helper,
+                           ["Muon_correctedPt",
+                            "Muon_correctedEta",
+                            "Muon_correctedPhi",
+                            "Muon_correctedCharge",
+                            "Muon_genPartIdx",
+                            "Muon_cvhbsMomCov",
+                            "vetoMuonsPre",
+                            "GenPart_pt",
+                            "GenPart_eta",
+                            "GenPart_phi",
+                            "GenPart_pdgId",
+                            "GenPart_statusFlags",
+                            "unity"
+                           ])
+            df = df.Define("smearing_weights_down", "muonScaleSyst_smearingWeightsPerSe_tensor(0,0)")
+            df = df.Define("smearing_weights_up", "muonScaleSyst_smearingWeightsPerSe_tensor(0,1)")
 
-            axis_smearing_weight = hist.axis.Regular(200, 0.9, 1.1, underflow=True, overflow=True, name = "smearing_weight")
-            smearing_weights_down = df.HistoBoost("smearing_weights_down", [*nominal_axes,axis_smearing_weight], [*nominal_cols, "smearing_weights_down"])
-            smearing_weights_up = df.HistoBoost("smearing_weights_up", [*nominal_axes,axis_smearing_weight], [*nominal_cols, "smearing_weights_up"])
+            axis_smearing_weight = hist.axis.Regular(1000, 0.95, 1.05, underflow=True, overflow=True, name = "smearing_weight")
+            smearing_weights_down = df.HistoBoost("smearing_weights_down", [*nominal_axes, axis_smearing_weight], [*nominal_cols, "smearing_weights_down"])
+            smearing_weights_up = df.HistoBoost("smearing_weights_up", [*nominal_axes, axis_smearing_weight], [*nominal_cols, "smearing_weights_up"])
             results.append(smearing_weights_down)
             results.append(smearing_weights_up)
 

@@ -265,6 +265,7 @@ public:
 
 private:
 
+/*
   out_tensor_t scale_res_weight(double pt, double eta, double phi, int charge, double genPt, double genEta, double genPhi, int genCharge, const RVec<float> &cov) const {
 
     const double theta = 2.*std::atan(std::exp(-double(eta)));
@@ -364,7 +365,106 @@ private:
 
     return res;
   }
+*/
 
+  out_tensor_t scale_res_weight(double pt, double eta, double phi, int charge, double genPt, double genEta, double genPhi, int genCharge, const RVec<float> &cov) const {
+
+    const double theta = 2.*std::atan(std::exp(-double(eta)));
+    const double lam = M_PI_2 - theta;
+    const double p = double(pt)/std::sin(theta);
+    const double qop = double(charge)/p;
+
+    const double parms = qop;
+
+    const double gentheta = 2.*std::atan(std::exp(-double(genEta)));
+    const double genlam = M_PI_2 - gentheta;
+    const double genp = double(genPt)/std::sin(gentheta);
+    const double genqop = double(genCharge)/genp;
+    const double genqopt = double(genCharge)/genPt;
+
+    const double genparms = genqop;
+
+    const double deltaparms = parms - genparms;
+
+    const Eigen::Map<const Eigen::Matrix<float, 3, 3, Eigen::RowMajor>> covMap(cov.data(), 3, 3);
+
+    const double covd = covMap.cast<double>()(0,0);
+    
+    const double covinv = 1 / covd;
+    const double covdet = covd;
+
+    const double lnp = -0.5*deltaparms*covinv*deltaparms;
+
+    // no need to initialize since all elements are explicit filled
+    out_tensor_t res;
+
+    const auto &varparms = hist_->at(hist_->template axis<0>().index(genEta)).data();
+
+    for (std::ptrdiff_t ivar = 0; ivar < nvars; ++ivar) {
+      Eigen::Vector3d parmvar = Eigen::Vector3d::Zero();
+      double covvar = 0;
+
+      const double A = varparms(ivar, 0);
+      const double e = varparms(ivar, 1);
+      const double M = varparms(ivar, 2);
+      const double sig = varparms(ivar, 3);
+
+      // scale
+      parmvar[0] += A*genqop;
+      parmvar[0] += -e*genqop/genPt;
+      parmvar[0] += genCharge*M*genPt*genqop;
+
+      // resolution
+      covvar += sig*covd;
+
+      for (std::ptrdiff_t idownup = 0; idownup < 2; ++idownup) {
+
+        const double dir = idownup == 0 ? -1. : 1.;
+
+        const double deltaparmsalt = deltaparms + dir * parmvar[0];
+        const double covdalt = covd + dir * covvar;
+
+        const double covinvalt = 1 / covdalt;
+        const double covdetalt = covdalt;
+
+        const double lnpalt = -0.5*deltaparmsalt*covinvalt*deltaparmsalt;
+
+        const double weight = std::sqrt(covdet/covdetalt)*std::exp(lnpalt - lnp);
+
+        /*
+        if (false) {
+          if (std::isnan(weight) || std::isinf(weight) || std::fabs(weight) == 0.) {
+            std::cout << "invalid weight: " << weight << std::endl;
+            std::cout << "pt " << pt << std::endl;
+            std::cout << "genPt " << genPt << std::endl;
+            std::cout << "qop " << qop << std::endl;
+            std::cout << "genqop " << genqop << std::endl;
+            std::cout << "qoperr " << std::sqrt(covd(0,0)) << std::endl;
+            std::cout << "lam " << lam << std::endl;
+            std::cout << "genlam " << genlam << std::endl;
+            std::cout << "lamerr " << std::sqrt(covd(1,1)) << std::endl;
+            std::cout << "phi " << phi << std::endl;
+            std::cout << "genlam " << genPhi << std::endl;
+            std::cout << "phierr " << std::sqrt(covd(2,2)) << std::endl;
+            std::cout << "covdet " << covdet << std::endl;
+            std::cout << "covdetalt " << covdet << std::endl;
+            std::cout << "lnp " << lnp << std::endl;
+            std::cout << "lnpalt " << lnpalt << std::endl;
+            std::cout << "covd\n" << covd << std::endl;
+            std::cout << "covdalt\n" << covdalt << std::endl;
+            std::cout << "covinv\n" << covinv << std::endl;
+            std::cout << "covinvalt\n" << covinvalt << std::endl;
+          }
+        }
+        */
+        // protect against outliers
+        res(ivar, idownup) = std::min(weight, maxWeight_);
+
+      }
+    }
+
+    return res;
+  }
   std::shared_ptr<const HIST> hist_;
   double minGenPt_;
   double maxWeight_;

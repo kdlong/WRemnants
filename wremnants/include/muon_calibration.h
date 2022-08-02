@@ -4,6 +4,8 @@
 #include "TTree.h"
 #include <eigen3/Eigen/Dense>
 #include <memory>
+#include <stdlib.h>
+#include <math.h>
 
 namespace wrem {
 
@@ -374,7 +376,7 @@ private:
     const double p = double(pt)/std::sin(theta);
     const double qop = double(charge)/p;
 
-    const double parms = qop;
+//    const double parms = qop;
 
     const double gentheta = 2.*std::atan(std::exp(-double(genEta)));
     const double genlam = M_PI_2 - gentheta;
@@ -384,12 +386,15 @@ private:
 
     const double genparms = genqop;
 
-    const double deltaparms = parms - genparms;
-
     const Eigen::Map<const Eigen::Matrix<float, 3, 3, Eigen::RowMajor>> covMap(cov.data(), 3, 3);
 
     const double covd = covMap.cast<double>()(0,0);
     
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(genqop, sqrt(covd));
+    const double parms = distribution(generator);
+
+    const double deltaparms = parms - genparms;
     const double covinv = 1 / covd;
     const double covdet = covd;
 
@@ -410,7 +415,7 @@ private:
       const double sig = varparms(ivar, 3);
 
       // scale
-      parmvar[0] += A*genqop;
+      parmvar[0] += A*qop;
       parmvar[0] += -e*genqop/genPt;
       parmvar[0] += genCharge*M*genPt*genqop;
 
@@ -459,7 +464,6 @@ private:
         */
         // protect against outliers
         res(ivar, idownup) = std::min(weight, maxWeight_);
-
       }
     }
 

@@ -115,6 +115,7 @@ def build_graph(df, dataset):
             df = df.Alias("Muon_correctedPhi", "Muon_cvhbsPhi")
             df = df.Alias("Muon_correctedCharge", "Muon_cvhbsCharge")
         elif isW or isZ:
+            df = df.Define("Muon_cvhbsMomCov", "wrem::splitNestedRVec(Muon_cvhbsMomCov_Vals, Muon_cvhbsMomCov_Counts)")
             df = wremnants.define_corrected_muons(df, calibration_helper)
         else:
             # no track refit available for background monte carlo samples and this is "good enough"
@@ -125,7 +126,13 @@ def build_graph(df, dataset):
 
     # n.b. charge = -99 is a placeholder for invalid track refit/corrections (mostly just from tracks below
     # the pt threshold of 8 GeV in the nano production)
+    df = df.Define("test", "GenPart_pt")
+    df = df.Define("Muon_looseId_redefine", "ROOT::VecOps::RVec<bool> res(GenPart_pt.size()); for (int i = 0; i < GenPart_pt.size(); i++) {res[i] = i < Muon_looseId.size() ? Muon_looseId[i] : 1;} return res;")
+    df = df.Define("Muon_dxybs_redefine", "ROOT::VecOps::RVec<double> res(GenPart_pt.size()); for (int i = 0; i < GenPart_pt.size(); i++) {res[i] = i < Muon_dxybs.size() ?  Muon_dxybs[i] : 0;} return res;")
+    df = df.Redefine("Muon_looseId", "Muon_looseId_redefine")
+    df = df.Redefine("Muon_dxybs", "Muon_dxybs_redefine")
     df = df.Define("vetoMuonsPre", "Muon_looseId && abs(Muon_dxybs) < 0.05 && Muon_correctedCharge != -99")
+    df = df.Define("vetoMuons", "vetoMuonsPre && Muon_correctedPt > 10. && abs(Muon_correctedEta) < 2.4")
     df = df.Define("vetoMuons", "vetoMuonsPre && Muon_correctedPt > 10. && abs(Muon_correctedEta) < 2.4")
     df = df.Filter("Sum(vetoMuons) == 1")
     df = df.Define("goodMuons", "vetoMuons && Muon_mediumId && Muon_isGlobal")
@@ -257,7 +264,6 @@ def build_graph(df, dataset):
 
                 results.append(dummyMuonScaleSyst)
 
-            df = df.Define("Muon_cvhbsMomCov", "wrem::splitNestedRVec(Muon_cvhbsMomCov_Vals, Muon_cvhbsMomCov_Counts)")
             df = df.Define("unity", "1.0")
             df = df.Define("muonScaleSyst_responseWeights_tensor", calibration_uncertainty_helper,
                            ["Muon_correctedPt",

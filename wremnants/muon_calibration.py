@@ -83,10 +83,12 @@ def define_corrected_muons(df, helper):
 
     # split into individual vectors
 #    df = df.Define("Muon_correctedPt", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Pt(); } ); return res;")
-    df = df.Define("Muon_correctedPt", "ROOT::VecOps::RVec<float> res(GenPart_pt.size()); double sigma = Muon_cvhbsMomCov[0][0]; std::transform(GenPart_pt.begin(), GenPart_pt.begin(), res.begin(), [&sigma] (const auto &x) { return wrem::gaussian_smearing(x, sigma);} ); return res;")
+    df = df.Define("Muon_correctedPt", "wrem::smearGenVar(Muon_cvhbsMomCov, GenPart_pdgId, GenPart_pt, GenPart_eta)")
 #    df = df.Define("Muon_correctedEta", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Eta(); } ); return res;")
     df = df.Define("Muon_correctedEta", "GenPart_eta")
-    df = df.Define("Muon_correctedPhi", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Phi(); } ); return res;")
-    df = df.Define("Muon_correctedCharge", "ROOT::VecOps::RVec<int> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.second; }); return res;")
+    df = df.Define("Muon_correctedPhi", "GenPart_phi")
+#    df = df.Define("Muon_correctedPhi", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Phi(); } ); return res;")
+#    df = df.Define("Muon_correctedCharge", "ROOT::VecOps::RVec<int> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.second; }); return res;")
+    df = df.Define("Muon_correctedCharge", "ROOT::VecOps::RVec<int> res(GenPart_pdgId.size()); for (int i = 0; i < GenPart_pdgId.size(); i++) {res[i] = GenPart_pdgId[i] > 0 ? -1 : 1;} return res")
 
     return df

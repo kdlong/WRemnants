@@ -472,12 +472,31 @@ private:
 
 };
 
-  double gaussian_smearing(double mean, double var) {
-    std::default_random_engine generator;
-    std::normal_distribution<double> distribution(mean, sqrt(var));
-    return distribution(generator);
-  }
+    double gaussianSmearing(double mean, double var) {
+        std::default_random_engine generator;
+        std::normal_distribution<double> distribution(mean, sqrt(var));
+        return distribution(generator);
+    }
 
+    RVec<float> smearGenVar(
+        RVec<RVec<float>> covMat,
+        RVec<int> genPdgId,
+        RVec<float> genPt,
+        RVec<float> genEta
+    ) {
+        RVec<float> res(genPt.size());
+        double sigma_qop = covMat[0][0];
+        for (int i = 0; i < genPt.size(); i++) {
+            int q = genPdgId[i] > 0 ? -1 : 1;
+            double pt = genPt[i];
+            double eta = genEta[i];
+            double theta = 2 * atan(exp(-1 * eta));
+            double sigma_pt = pow(pt, 2) / (q * sin(theta)) * sigma_qop;
+            res[i] = gaussianSmearing(genPt[i], sigma_pt);
+        }
+        return res;
+    }
+    
   //double get_cov_matx_element(const RVec<float> &cov) {
     //return cov.data().cast<double>()(0);
   //}

@@ -1,6 +1,7 @@
 import pathlib
 import mplhep as hep
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 from matplotlib import patches
 from wremnants import boostHistHelpers as hh
 from wremnants import histselections as sel
@@ -19,7 +20,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     grid_on_main_plot = False, grid_on_ratio_plot = False, plot_title = None
 ):
     hax = href.axes[0]
-    width = math.ceil(hax.size/300)
+    width = math.ceil(hax.size/400)
     fig = plt.figure(figsize=(8*width,8))
     ax1 = fig.add_subplot(4, 1, (1, 3)) 
     ax2 = fig.add_subplot(4, 1, 4) 
@@ -27,13 +28,14 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     ax2.set_xlabel(xlabel)
     ax1.set_xlabel(" ")
     ax1.set_ylabel(ylabel)
-    ax1.set_xticklabels([])
+    #ax1.set_xticklabels([])
     if not xlim:
         xlim = [href.axes[0].edges[0], href.axes[0].edges[href.axes[0].size-1]]
     ax1.set_xlim(xlim)
     ax2.set_xlim(xlim)
     ax2.set_ylabel(rlabel, fontsize=22)
     ax2.set_ylim(rrange)
+
     if ylim:
         ax1.set_ylim(ylim)
     else:
@@ -117,8 +119,8 @@ def makeStackPlotWithRatio(
                 yerr=True if (proc == "Data" and not data_hist) else False,
                 ax=ax2
             )
-
     addLegend(ax1, nlegcols, extra_text)
+
     return fig
 
 def makePlotWithRatioToRef(
@@ -166,7 +168,7 @@ def makePlotWithRatioToRef(
             alpha=alpha,
         )
         hep.histplot(
-            hh.divideHists(data, hists[0], cutoff=1.e-6),
+            hh.divideHists(data, hists[0], cutoff=1.e-8),
             histtype="errorbar",
             color=colors[-1],
             label=labels[-1],
@@ -178,6 +180,21 @@ def makePlotWithRatioToRef(
         )
 
     addLegend(ax1, nlegcols, legtext_size)
+    
+    # This seems like a bug, but it's needed
+    if not xlim:
+        xlim = [hists[0].axes[0].edges[0], hists[0].axes[0].edges[-1]]
+    
+    label_format = '{:,.0f}'
+    xlocator = ticker.FixedLocator(np.linspace(*ax1.get_xlim(), 10))
+    ylocator = ticker.FixedLocator(np.linspace(*ax1.get_ylim(), 5))
+    ax1.xaxis.set_major_locator(xlocator)
+    ax2.xaxis.set_major_locator(xlocator)
+    ax1.yaxis.set_major_locator(ylocator)
+    ax2.set_xticklabels([f"{x:.0f}" if x.is_integer() else f"{x:.3g}" for x in ax2.get_xticks().tolist()])
+    ax1.set_yticklabels([f"{x:.0f}" if x.is_integer() else f"{x:.3g}" for x in ax1.get_yticks().tolist()])
+    ax1.set_xticklabels([])
+
     return fig
 
 def make_plot_dir(outpath, outfolder):

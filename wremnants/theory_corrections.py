@@ -103,10 +103,6 @@ def make_corr_by_helicity(ref_helicity_hist, target_sigmaul, target_sigma4, ndim
     rescaled_coeffs = ref_coeffs.values(flow=True)[...,np.newaxis]*sigmaUL_ratio.values(flow=True)[...,np.newaxis,:]
     corr_coeffs[...,True,:] = rescaled_coeffs
 
-    # This is because I haven't run W+ yet
-    if corr_coeffs.axes["chargeVgen"].size == 2:
-        corr_coeffs[...,1.j,:,:].view(flow=True)[...] = corr_coeffs[{"chargeVgen" : -1.j}].view(flow=True)
-
     corr_coeffs = set_corr_ratio_flow(corr_coeffs)
     return corr_coeffs
 

@@ -7,10 +7,9 @@ import numpy as np
 import lz4.frame
 import pickle
 from .correctionsTensor_helper import makeCorrectionsTensor
-from wremnants import boostHistHelpers as hh,theory_tools
-from wremnants.common import data_dir
+from wremnants import boostHistHelpers as hh,theory_tools,common
 
-def make_corr_helper_fromnp(filename=f"{data_dir}/N3LLCorrections/inclusive_{{process}}_pT.npz", isW=True):
+def make_corr_helper_fromnp(filename=f"{common.data_dir}/N3LLCorrections/inclusive_{{process}}_pT.npz", isW=True):
     if isW:
         corrf_Wp = np.load(filename.format(process="Wp"), allow_pickle=True)
         corrf_Wm = np.load(filename.format(process="Wm"), allow_pickle=True)
@@ -58,6 +57,7 @@ def make_corr_by_helicity_helper(filename, proc, histname):
 def rebin_corr_hists(hists, ndim=-1):
     # Allow trailing dimensions to be different (e.g., variations)
     ndims = min([x.ndim for x in hists]) if ndim < 0 else ndim
+    hists = [hh.rebinHist(h, "pt" if "pt" in h.axes.name else "ptVgen", common.ptV_binning[:-2]) for h in hists]
     for i in range(ndims):
         # This is a workaround for now for the fact that MiNNLO has mass binning up to
         # Inf whereas SCETlib has 13 TeV

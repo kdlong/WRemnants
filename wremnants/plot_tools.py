@@ -1,7 +1,7 @@
 import pathlib
 import mplhep as hep
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+from matplotlib import ticker
 from matplotlib import patches
 from wremnants import boostHistHelpers as hh
 from wremnants import histselections as sel
@@ -20,7 +20,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     grid_on_main_plot = False, grid_on_ratio_plot = False, plot_title = None
 ):
     hax = href.axes[0]
-    width = math.ceil(hax.size/400)
+    width = math.ceil(hax.size/300)
     fig = plt.figure(figsize=(8*width,8))
     ax1 = fig.add_subplot(4, 1, (1, 3)) 
     ax2 = fig.add_subplot(4, 1, 4) 
@@ -30,7 +30,8 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     ax1.set_ylabel(ylabel)
     #ax1.set_xticklabels([])
     if not xlim:
-        xlim = [href.axes[0].edges[0], href.axes[0].edges[href.axes[0].size-1]]
+        xlim = [href.axes[0].edges[0], href.axes[0].edges[-1]]
+        print(xlim)
     ax1.set_xlim(xlim)
     ax2.set_xlim(xlim)
     ax2.set_ylabel(rlabel, fontsize=22)
@@ -185,17 +186,26 @@ def makePlotWithRatioToRef(
     if not xlim:
         xlim = [hists[0].axes[0].edges[0], hists[0].axes[0].edges[-1]]
     
-    label_format = '{:,.0f}'
-    xlocator = ticker.FixedLocator(np.linspace(*ax1.get_xlim(), 10))
-    ylocator = ticker.FixedLocator(np.linspace(*ax1.get_ylim(), 5))
-    ax1.xaxis.set_major_locator(xlocator)
-    ax2.xaxis.set_major_locator(xlocator)
-    ax1.yaxis.set_major_locator(ylocator)
-    ax2.set_xticklabels([f"{x:.0f}" if x.is_integer() else f"{x:.3g}" for x in ax2.get_xticks().tolist()])
-    ax1.set_yticklabels([f"{x:.0f}" if x.is_integer() else f"{x:.3g}" for x in ax1.get_yticks().tolist()])
+    redo_axis_ticks(ax1, "y")
+    redo_axis_ticks(ax2, "x")
+    redo_axis_ticks(ax1, "x", True)
     ax1.set_xticklabels([])
 
     return fig
+
+def redo_axis_ticks(ax, axlabel, no_labels=False):
+    autoloc = ticker.AutoLocator()
+    # Need this to avoid a warning when you set the axis values manually
+    fixedloc = ticker.FixedLocator(autoloc.tick_values(*getattr(ax, f"get_{axlabel}lim")()))
+    getattr(ax, f"{axlabel}axis").set_major_locator(fixedloc)
+    ticks = getattr(ax, f"get_{axlabel}ticks")()
+    labels = [format_axis_num(x) for x in ticks] if not no_labels else []
+    getattr(ax, f"set_{axlabel}ticklabels")(labels)
+
+def format_axis_num(val):
+    if type(val) == int or val.is_integer():
+        return f"{val:.0f}"
+    return f"{x:0.3g}" if val > 10 else f"{val:0.2g}"
 
 def make_plot_dir(outpath, outfolder):
     full_outpath = "/".join([outpath, outfolder])

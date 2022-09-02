@@ -131,11 +131,11 @@ def makePlotWithRatioToRef(
     hists, labels, colors, xlabel="", ylabel="Events/bin", rlabel="x/nominal",
     rrange=[0.9, 1.1], ylim=None, xlim=None, nlegcols=2, binwnorm=None, alpha=1.,
     baseline=True, data=False, autorrange=None, grid = False,
-    yerr=False, legtext_size=20,
+    yerr=False, legtext_size=20, plot_title=None
 ):
     # nominal is always at first, data is always at last, if included
     ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001) for h in hists[not baseline:]]
-    fig, ax1, ax2 = figureWithRatio(hists[0], xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, grid_on_ratio_plot = grid)
+    fig, ax1, ax2 = figureWithRatio(hists[0], xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, grid_on_ratio_plot = grid, plot_title = plot_title)
     
     hep.histplot(
         hists[:len(hists) - data],

@@ -102,6 +102,7 @@ def build_graph(df, dataset):
     isZ = dataset.name in common.zprocs
     isTop = dataset.group == "Top"
     apply_theory_corr = args.theory_corr and dataset.name in corr_helpers
+    df = df.Filter("Muon_cvhbsMomCov_Vals[0] > 0")
     if noMuonCorr:
         df = df.Alias("Muon_correctedPt", "Muon_pt")
         df = df.Alias("Muon_correctedEta", "Muon_eta")
@@ -117,6 +118,7 @@ def build_graph(df, dataset):
         elif isW or isZ:
             df = df.Define("Muon_cvhbsMomCov", "wrem::splitNestedRVec(Muon_cvhbsMomCov_Vals, Muon_cvhbsMomCov_Counts)")
             df = wremnants.define_corrected_muons(df, calibration_helper)
+            df = wremnants.define_corrected_muons_from_gensmear(df)
         else:
             # no track refit available for background monte carlo samples and this is "good enough"
             df = df.Alias("Muon_correctedPt", "Muon_pt")
@@ -126,22 +128,65 @@ def build_graph(df, dataset):
 
     # n.b. charge = -99 is a placeholder for invalid track refit/corrections (mostly just from tracks below
     # the pt threshold of 8 GeV in the nano production)
-    df = df.Define("test", "GenPart_pt")
-    df = df.Define("Muon_looseId_redefine", "ROOT::VecOps::RVec<bool> res(GenPart_pt.size()); for (int i = 0; i < GenPart_pt.size(); i++) {res[i] = i < Muon_looseId.size() ? Muon_looseId[i] : 1;} return res;")
-    df = df.Define("Muon_dxybs_redefine", "ROOT::VecOps::RVec<double> res(GenPart_pt.size()); for (int i = 0; i < GenPart_pt.size(); i++) {res[i] = i < Muon_dxybs.size() ?  Muon_dxybs[i] : 0;} return res;")
-    df = df.Redefine("Muon_looseId", "Muon_looseId_redefine")
-    df = df.Redefine("Muon_dxybs", "Muon_dxybs_redefine")
     df = df.Define("vetoMuonsPre", "Muon_looseId && abs(Muon_dxybs) < 0.05 && Muon_correctedCharge != -99")
-    df = df.Define("vetoMuons", "vetoMuonsPre && Muon_correctedPt > 10. && abs(Muon_correctedEta) < 2.4")
     df = df.Define("vetoMuons", "vetoMuonsPre && Muon_correctedPt > 10. && abs(Muon_correctedEta) < 2.4")
     df = df.Filter("Sum(vetoMuons) == 1")
     df = df.Define("goodMuons", "vetoMuons && Muon_mediumId && Muon_isGlobal")
     df = df.Filter("Sum(goodMuons) == 1")
-    
+
+    # the corrected RECO muon kinematics, which is intended to be used as the nominal
     df = df.Define("goodMuons_pt0", "Muon_correctedPt[goodMuons][0]")
     df = df.Define("goodMuons_eta0", "Muon_correctedEta[goodMuons][0]")
     df = df.Define("goodMuons_phi0", "Muon_correctedPhi[goodMuons][0]")
     df = df.Define("goodMuons_charge0", "Muon_correctedCharge[goodMuons][0]")
+
+    # the cvhbs RECO muon kinematics, on top of which the corrections are applied to get nominal
+    df = df.Define("goodMuons_pt0_cvhbs", "Muon_cvhbsPt[goodMuons][0]")
+    df = df.Define("goodMuons_eta0_cvhbs", "Muon_cvhbsEta[goodMuons][0]")
+    df = df.Define("goodMuons_phi0_cvhbs", "Muon_cvhbsPhi[goodMuons][0]")
+    df = df.Define("goodMuons_charge0_cvhbs", "Muon_cvhbsCharge[goodMuons][0]")
+
+    # the uncorrected RECO muon kinematics
+    df = df.Define("goodMuons_pt0_uncrct", "Muon_pt[goodMuons][0]")
+    df = df.Define("goodMuons_eta0_uncrct", "Muon_eta[goodMuons][0]")
+    df = df.Define("goodMuons_phi0_uncrct", "Muon_phi[goodMuons][0]")
+    df = df.Define("goodMuons_charge0_uncrct", "Muon_charge[goodMuons][0]")
+
+    # the GEN muon kinematics
+    df = df.Define("goodMuons_pt0_gen", "GenMuon_pt_sorted[0]")
+    df = df.Define("goodMuons_eta0_gen", "GenMuon_eta_sorted[0]")
+    df = df.Define("goodMuons_phi0_gen", "GenMuon_phi_sorted[0]")
+    df = df.Define("goodMuons_charge0_gen", "GenMuon_charge_sorted[0]")
+
+    # the GEN muon kinematics with smearing matching variances in cov mat for track fit parameters
+    df = df.Define("goodMuons_pt0_gen_smeared", "GenMuon_pt_smeared_sorted[0]")
+    df = df.Define("goodMuons_eta0_gen_smeared", "GenMuon_eta_smeared_sorted[0]")
+    df = df.Define("goodMuons_phi0_gen_smeared", "GenMuon_phi_smeared_sorted[0]")
+    df = df.Define("goodMuons_charge0_gen_smeared", "GenMuon_charge_smeared_sorted[0]")
+
+    # corrected RECO / GEN
+    df = df.Define("goodMuons_pt0_crctd_over_gen", "goodMuons_pt0/goodMuons_pt0_gen")
+    df = df.Define("goodMuons_eta0_crctd_over_gen", "goodMuons_eta0/goodMuons_eta0_gen")
+    df = df.Define("goodMuons_phi0_crctd_over_gen", "goodMuons_phi0/goodMuons_phi0_gen")
+    df = df.Define("goodMuons_charge0_crctd_over_gen", "goodMuons_charge0/goodMuons_charge0_gen")
+
+    # cvhbs RECO / GEN
+    df = df.Define("goodMuons_pt0_cvhbs_over_gen", "goodMuons_pt0_cvhbs/goodMuons_pt0_gen")
+    df = df.Define("goodMuons_eta0_cvhbs_over_gen", "goodMuons_eta0_cvhbs/goodMuons_eta0_gen")
+    df = df.Define("goodMuons_phi0_cvhbs_over_gen", "goodMuons_phi0_cvhbs/goodMuons_phi0_gen")
+    df = df.Define("goodMuons_charge0_cvhbs_over_gen", "goodMuons_charge0_cvhbs/goodMuons_charge0_gen")
+
+    # uncorrected RECO / GEN
+    df = df.Define("goodMuons_pt0_uncrct_over_gen", "goodMuons_pt0_uncrct/goodMuons_pt0_gen")
+    df = df.Define("goodMuons_eta0_uncrct_over_gen", "goodMuons_eta0_uncrct/goodMuons_eta0_gen")
+    df = df.Define("goodMuons_phi0_uncrct_over_gen", "goodMuons_phi0_uncrct/goodMuons_phi0_gen")
+    df = df.Define("goodMuons_charge0_uncrct_over_gen", "goodMuons_charge0_uncrct/goodMuons_charge0_gen")
+
+    # smeared GEN / GEN
+    df = df.Define("goodMuons_pt0_smeared_gen_over_gen", "goodMuons_pt0_gen_smeared/goodMuons_pt0_gen")
+    df = df.Define("goodMuons_eta0_smeared_gen_over_gen", "goodMuons_eta0_gen_smeared/goodMuons_eta0_gen")
+    df = df.Define("goodMuons_phi0_smeared_gen_over_gen", "goodMuons_phi0_gen_smeared/goodMuons_phi0_gen")
+    df = df.Define("goodMuons_charge0_smeared_gen_over_gen", "goodMuons_charge0_gen_smeared/goodMuons_charge0_gen")
 
     df = df.Define("goodMuons_pfRelIso04_all0", "Muon_pfRelIso04_all[goodMuons][0]")
 
@@ -169,7 +214,39 @@ def build_graph(df, dataset):
         df = df.Define("postFSRmuons", "GenPart_status == 1 && (GenPart_statusFlags & 1) && abs(GenPart_pdgId) == 13")
         df = df.Filter("wrem::hasMatchDR2(goodMuons_eta0,goodMuons_phi0,GenPart_eta[postFSRmuons],GenPart_phi[postFSRmuons],0.09)")
     
-    nominal_cols = ["goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT"]
+    nominal_cols = [
+        "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0",
+        "passIso", "passMT"
+    ]
+    nominal_cols_cvhbs = [
+        "goodMuons_eta0_cvhbs", "goodMuons_pt0_cvhbs", "goodMuons_charge0_cvhbs",
+        "passIso", "passMT"
+    ]
+    nominal_cols_uncrct = [
+        "goodMuons_eta0_uncrct", "goodMuons_pt0_uncrct", "goodMuons_charge0_uncrct", 
+        "passIso", "passMT"
+    ]
+    nominal_cols_gen = [
+        "goodMuons_eta0_gen", "goodMuons_pt0_gen", "goodMuons_charge0_gen", 
+        "passIso", "passMT"
+    ]
+    nominal_cols_gen_smeared = [
+        "goodMuons_eta0_gen_smeared", "goodMuons_pt0_gen_smeared", "goodMuons_charge0_gen_smeared",
+        "passIso", "passMT"
+    ]
+
+    nominal_cols_crctd_over_gen = [
+        "goodMuons_eta0_crctd_over_gen", "goodMuons_pt0_crctd_over_gen", "goodMuons_charge0_crctd_over_gen",
+        "passIso", "passMT"
+    ]
+    nominal_cols_cvhbs_over_gen = [
+        "goodMuons_eta0_cvhbs_over_gen", "goodMuons_pt0_cvhbs_over_gen", "goodMuons_charge0_cvhbs_over_gen",
+        "passIso", "passMT"
+    ]
+    nominal_cols_uncrct_over_gen = [
+        "goodMuons_eta0_uncrct_over_gen", "goodMuons_pt0_uncrct_over_gen", "goodMuons_charge0_uncrct_over_gen",
+        "passIso", "passMT"
+    ]
 
     if dataset.is_data:
         nominal = df.HistoBoost("nominal", nominal_axes, nominal_cols)
@@ -191,8 +268,27 @@ def build_graph(df, dataset):
                 corr_helpers[dataset.name], args.theory_corr, modify_central_weight=not args.theory_corr_alt_only)
             )
 
-        nominal = df.HistoBoost("nominal", nominal_axes, [*nominal_cols, "nominal_weight"])
+        nominal =             df.HistoBoost("nominal", nominal_axes, [*nominal_cols, "nominal_weight"])
+        nominal_cvhbs =       df.HistoBoost("nominal_cvhbs", nominal_axes, [*nominal_cols_cvhbs, "nominal_weight"])
+        nominal_uncrct =      df.HistoBoost("nominal_uncrct", nominal_axes, [*nominal_cols_uncrct, "nominal_weight"])
+        nominal_gen =         df.HistoBoost("nominal_gen", nominal_axes, [*nominal_cols_gen, "nominal_weight"])
+        nominal_gen_smeared = df.HistoBoost("nominal_gen_smeared", nominal_axes, [*nominal_cols_gen_smeared, "nominal_weight"])
+
+        axis_pt_reco_over_gen = hist.axis.Regular(1000, 0.95, 1.05, underflow=True, overflow=True, name = "pt_reco_over_gen")
+        axis_eta_reco_over_gen = hist.axis.Regular(800, 0.6, 1.4, underflow=True, overflow=True, name = "eta_reco_over_gen")
+        reco_over_gen_axes = [axis_pt_reco_over_gen, axis_eta_reco_over_gen, axis_charge, axis_passIso, axis_passMT]
+        crctd_over_gen =  df.HistoBoost("crctd_over_gen", reco_over_gen_axes, [*nominal_cols_crctd_over_gen, "nominal_weight"])
+        cvhbs_over_gen =  df.HistoBoost("cvhbs_over_gen", reco_over_gen_axes, [*nominal_cols_cvhbs_over_gen, "nominal_weight"])
+        uncrct_over_gen = df.HistoBoost("uncrct_over_gen", reco_over_gen_axes, [*nominal_cols_uncrct_over_gen, "nominal_weight"])
+
         results.append(nominal)
+        results.append(nominal_cvhbs)
+        results.append(nominal_uncrct)
+        results.append(nominal_gen)
+        results.append(nominal_gen_smeared)
+        results.append(crctd_over_gen)
+        results.append(cvhbs_over_gen)
+        results.append(uncrct_over_gen)
 
         df = df.Define("effStatTnP_tensor", muon_efficiency_helper_stat, ["goodMuons_pt0", "goodMuons_eta0", "goodMuons_charge0", "passIso", "nominal_weight"])
 
@@ -265,6 +361,7 @@ def build_graph(df, dataset):
                 results.append(dummyMuonScaleSyst)
 
             df = df.Define("unity", "1.0")
+            '''
             df = df.Define("muonScaleSyst_responseWeights_tensor", calibration_uncertainty_helper,
                            ["Muon_correctedPt",
                             "Muon_correctedEta",
@@ -296,6 +393,41 @@ def build_graph(df, dataset):
                             "GenPart_eta",
                             "GenPart_phi",
                             "GenPart_pdgId",
+                            "GenPart_statusFlags",
+                            "unity"
+                           ])
+            '''
+            df = df.Define("muonScaleSyst_responseWeights_tensor_gensmear", calibration_uncertainty_helper,
+                           ["GenMuon_pt_smeared_sorted",
+                            "GenMuon_eta_smeared_sorted",
+                            "GenMuon_phi_smeared_sorted",
+                            "GenMuon_charge_smeared_sorted",
+                            "Muon_genPartIdx",
+                            "Muon_cvhbsMomCov",
+                            "vetoMuonsPre",
+                            "GenMuon_pt_sorted",
+                            "GenMuon_eta_sorted",
+                            "GenMuon_phi_sorted",
+                            "GenMuon_charge_sorted",
+                            "GenPart_statusFlags",
+                            "nominal_weight"
+                           ])
+
+            dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights_gensmear", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor_gensmear"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
+            results.append(dummyMuonScaleSyst_responseWeights)
+
+            df = df.Define("muonScaleSyst_smearingWeightsPerSe_tensor", calibration_uncertainty_helper,
+                           ["GenMuon_pt_smeared_sorted",
+                            "GenMuon_eta_smeared_sorted",
+                            "GenMuon_phi_smeared_sorted",
+                            "GenMuon_charge_smeared_sorted",
+                            "Muon_genPartIdx",
+                            "Muon_cvhbsMomCov",
+                            "vetoMuonsPre",
+                            "GenMuon_pt_sorted",
+                            "GenMuon_eta_sorted",
+                            "GenMuon_phi_sorted",
+                            "GenMuon_charge_sorted",
                             "GenPart_statusFlags",
                             "unity"
                            ])

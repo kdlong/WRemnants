@@ -183,10 +183,10 @@ def build_graph(df, dataset):
     df = df.Define("goodMuons_charge0_uncrct_over_gen", "goodMuons_charge0_uncrct/goodMuons_charge0_gen")
 
     # smeared GEN / GEN
-    df = df.Define("goodMuons_pt0_smeared_gen_over_gen", "goodMuons_pt0_gen_smeared/goodMuons_pt0_gen")
-    df = df.Define("goodMuons_eta0_smeared_gen_over_gen", "goodMuons_eta0_gen_smeared/goodMuons_eta0_gen")
-    df = df.Define("goodMuons_phi0_smeared_gen_over_gen", "goodMuons_phi0_gen_smeared/goodMuons_phi0_gen")
-    df = df.Define("goodMuons_charge0_smeared_gen_over_gen", "goodMuons_charge0_gen_smeared/goodMuons_charge0_gen")
+    df = df.Define("goodMuons_pt0_gen_smeared_over_gen", "goodMuons_pt0_gen_smeared/goodMuons_pt0_gen")
+    df = df.Define("goodMuons_eta0_gen_smeared_over_gen", "goodMuons_eta0_gen_smeared/goodMuons_eta0_gen")
+    df = df.Define("goodMuons_phi0_gen_smeared_over_gen", "goodMuons_phi0_gen_smeared/goodMuons_phi0_gen")
+    df = df.Define("goodMuons_charge0_gen_smeared_over_gen", "goodMuons_charge0_gen_smeared/goodMuons_charge0_gen")
 
     df = df.Define("goodMuons_pfRelIso04_all0", "Muon_pfRelIso04_all[goodMuons][0]")
 
@@ -247,6 +247,10 @@ def build_graph(df, dataset):
         "goodMuons_eta0_uncrct_over_gen", "goodMuons_pt0_uncrct_over_gen", "goodMuons_charge0_uncrct_over_gen",
         "passIso", "passMT"
     ]
+    nominal_cols_gen_smeared_over_gen = [
+        "goodMuons_eta0_gen_smeared_over_gen", "goodMuons_pt0_gen_smeared_over_gen", "goodMuons_charge0_gen_smeared_over_gen",
+        "passIso", "passMT"
+    ]
 
     if dataset.is_data:
         nominal = df.HistoBoost("nominal", nominal_axes, nominal_cols)
@@ -280,6 +284,7 @@ def build_graph(df, dataset):
         crctd_over_gen =  df.HistoBoost("crctd_over_gen", reco_over_gen_axes, [*nominal_cols_crctd_over_gen, "nominal_weight"])
         cvhbs_over_gen =  df.HistoBoost("cvhbs_over_gen", reco_over_gen_axes, [*nominal_cols_cvhbs_over_gen, "nominal_weight"])
         uncrct_over_gen = df.HistoBoost("uncrct_over_gen", reco_over_gen_axes, [*nominal_cols_uncrct_over_gen, "nominal_weight"])
+        gen_smeared_over_gen = df.HistoBoost("gen_smeared_over_gen", reco_over_gen_axes, [*nominal_cols_gen_smeared_over_gen, "nominal_weight"])
 
         results.append(nominal)
         results.append(nominal_cvhbs)

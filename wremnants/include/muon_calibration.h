@@ -2,10 +2,12 @@
 #include "Math/GenVector/PtEtaPhiM4D.h"
 #include "TFile.h"
 #include "TTree.h"
+#include "TRandom.h"
 #include <eigen3/Eigen/Dense>
 #include <memory>
 #include <stdlib.h>
 #include <math.h>
+#include <fstream>
 
 namespace wrem {
 
@@ -210,6 +212,7 @@ public:
                                                                                   minGenPt_(minGenPt),
                                                                                   maxWeight_(maxWeight) {}
 
+/*
   out_tensor_t operator() (const RVec<float> &pts,
                       const RVec<float> &etas,
                       const RVec<float> &phis,
@@ -260,10 +263,32 @@ public:
 
       res *= scale_res_weight(pts[i], etas[i], phis[i], charges[i], genPts[genidx], genEtas[genidx], genPhis[genidx], gencharge, momcovs[i]);
     }
+*/
+  out_tensor_t operator() (const RVec<float> &pts,
+                      const RVec<float> &etas,
+                      const RVec<float> &phis,
+                      const RVec<int> &charges,
+                      const RVec<int> &matchedGenIdxs,
+                      const RVec<RVec<float>> &momcovs,
+                      const RVec<int> &selection,
+                      const RVec<float> &genPts,
+                      const RVec<float> &genEtas,
+                      const RVec<float> &genPhis,
+                      const RVec<int> &genCharge,
+                      const RVec<int> &genStatusFlags,
+                      double nominal_weight) const {
 
+    //TODO move this into a helper
+
+
+    out_tensor_t res;
+    res.setConstant(nominal_weight);
+    if (momcovs[0].size() > 0) {
+        res *= scale_res_weight(pts[0], etas[0], phis[0], charges[0], genPts[0], genEtas[0], genPhis[0], genCharge[0], momcovs[0]);
+    }
     return res;
-
   }
+
 
 private:
 
@@ -376,6 +401,8 @@ private:
     const double p = double(pt)/std::sin(theta);
     const double qop = double(charge)/p;
 
+    //if(isnan(pt)) {cout << "pt \n";}
+    //if(isnan(genPt)) {cout << "genPt \n";}
     const double parms = qop;
 
     const double gentheta = 2.*std::atan(std::exp(-double(genEta)));
@@ -385,6 +412,8 @@ private:
     const double genqopt = double(genCharge)/genPt;
 
     const double genparms = genqop;
+
+    //if (isnan(genparms)) {cout << "genparms \n";}
 
     const double deltaparms = parms - genparms;
 
@@ -432,6 +461,15 @@ private:
         const double lnpalt = -0.5*deltaparmsalt*covinvalt*deltaparmsalt;
 
         const double weight = std::sqrt(covdet/covdetalt)*std::exp(lnpalt - lnp);
+        //if (isnan(covinvalt)) {cout << "covinvalt \n";}
+        //if (isnan(covinv)) {cout << "covinv \n";}
+        //if (isnan(deltaparmsalt)) {cout << "deltaparmsalt \n";}
+        //if (isnan(deltaparms)) {cout << "deltaparms \n";}
+       // if (isnan(covdet)) {cout << "covdet \n";}
+       // if (isnan(covdetalt)) {cout << "covdetalt \n";}
+       // if (isnan(lnpalt)) {cout << "lnpalt \n";}
+       // if (isnan(lnp)) {cout << "lnp \n";}
+        // if (isnan(weight)) {cout << "smearing weight is NaN \n";}
 
         /*
         if (false) {
@@ -463,7 +501,6 @@ private:
         res(ivar, idownup) = std::min(weight, maxWeight_);
       }
     }
-
     return res;
   }
   std::shared_ptr<const HIST> hist_;
@@ -473,8 +510,9 @@ private:
 };
 
     double gaussianSmearing(double mean, double var) {
-        std::default_random_engine generator;
-        std::normal_distribution<double> distribution(mean, sqrt(var));
+        unsigned seed = chrono::system_clock::now().time_since_epoch().count();
+        std::default_random_engine generator(seed);
+        std::normal_distribution<double> distribution{mean, sqrt(var)};
         return distribution(generator);
     }
 
@@ -484,15 +522,23 @@ private:
         RVec<float> genPt,
         RVec<float> genEta
     ) {
-        RVec<float> res(genPt.size());
-        double sigma_qop = covMat[0][0];
+        RVec<Double_t> res(genPt.size());
+
+        //for (int i = 0; i < covMat.size(); i++) {
+        //    for (int j = 0; j < covMat[i].size(); j++) {
+        //        cout << "CovMat[" << i << "][" << j << "] is" << covMat[i][j] << "\n";
+        //    }
+        //}
+        double sigma2_qop = covMat[0][0];
+        TRandom *evt_generator = new TRandom();
         for (int i = 0; i < genPt.size(); i++) {
             int q = genPdgId[i] > 0 ? -1 : 1;
             double pt = genPt[i];
             double eta = genEta[i];
             double theta = 2 * atan(exp(-1 * eta));
-            double sigma_pt = pow(pt, 2) / (q * sin(theta)) * sigma_qop;
-            res[i] = gaussianSmearing(genPt[i], sigma_pt);
+            double sigma2_pt = pow(pt, 2) / (abs(q * sin(theta))) * sigma2_qop;
+
+            res[i] = evt_generator->Gaus(genPt[i], sqrt(sigma2_pt));
         }
         return res;
     }

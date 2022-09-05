@@ -294,6 +294,7 @@ def build_graph(df, dataset):
         results.append(crctd_over_gen)
         results.append(cvhbs_over_gen)
         results.append(uncrct_over_gen)
+        results.append(gen_smeared_over_gen)
 
         df = df.Define("effStatTnP_tensor", muon_efficiency_helper_stat, ["goodMuons_pt0", "goodMuons_eta0", "goodMuons_charge0", "passIso", "nominal_weight"])
 

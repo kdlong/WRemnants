@@ -3,6 +3,7 @@ import mplhep as hep
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 from matplotlib import patches
+from matplotlib.ticker import StrMethodFormatter # for setting number of decimal places on tick labels
 from utilities import boostHistHelpers as hh
 from wremnants import histselections as sel
 import math
@@ -17,7 +18,7 @@ import datetime
 hep.style.use(hep.style.ROOT)
 
 def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
-    grid_on_main_plot = False, grid_on_ratio_plot = False, plot_title = None
+    grid_on_main_plot = False, grid_on_ratio_plot = False, plot_title = None, x_ticks_ndp = None
 ):
     hax = href.axes[0]
     width = math.ceil(hax.size/300)
@@ -32,6 +33,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
         xlim = [href.axes[0].edges[0], href.axes[0].edges[-1]]
     ax1.set_xlim(xlim)
     ax2.set_xlim(xlim)
+    if x_ticks_ndp: ax2.xaxis.set_major_formatter(StrMethodFormatter('{x:.' + str(x_ticks_ndp) + 'f}'))
     ax2.set_ylabel(rlabel, fontsize=22)
     ax2.set_ylim(rrange)
 
@@ -131,7 +133,7 @@ def makePlotWithRatioToRef(
     hists, labels, colors, xlabel="", ylabel="Events/bin", rlabel="x/nominal",
     rrange=[0.9, 1.1], ylim=None, xlim=None, nlegcols=2, binwnorm=None, alpha=1.,
     baseline=True, data=False, autorrange=None, grid = False,
-    yerr=False, legtext_size=20, plot_title=None
+    yerr=False, legtext_size=20, plot_title=None, x_ticks_ndp = None
 ):
     # nominal is always at first, data is always at last, if included
     ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001) for h in hists[not baseline:]]
@@ -190,8 +192,7 @@ def makePlotWithRatioToRef(
     if not xlim:
         xlim = [hists[0].axes[0].edges[0], hists[0].axes[0].edges[-1]]
 
-    fix_axes(ax1, ax2)
-    
+    if x_ticks_ndp: ax2.xaxis.set_major_formatter(StrMethodFormatter('{x:.' + str(x_ticks_ndp) + 'f}'))
     return fig
 
 def fix_axes(ax1, ax2):

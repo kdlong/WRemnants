@@ -2,6 +2,8 @@ import ROOT
 import pathlib
 import hist
 import narf
+from utilities import rdf_tools
+
 
 ROOT.gInterpreter.Declare('#include "muon_calibration.h"')
 ROOT.gInterpreter.Declare('#include "lowpu_utils.h"')
@@ -67,7 +69,7 @@ def get_dummy_uncertainties():
     h = hist.Hist(axis_eta, axis_calvar, axis_calparm)
 
     # forward b-field-like
-    h.values()[..., 0, 0] = 1e-2
+    h.values()[..., 0, 0] = 1e-4
 
     # set underflow and overflow to match boundaries
     h.values(flow=True)[0, ...] = h.values(flow=True)[1, ...]
@@ -87,16 +89,25 @@ def define_corrected_muons(df, helper):
     df = df.Define("Muon_correctedEta", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Eta(); } ); return res;")
     df = df.Define("Muon_correctedPhi", "ROOT::VecOps::RVec<float> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.first.Phi(); } ); return res;")
     df = df.Define("Muon_correctedCharge", "ROOT::VecOps::RVec<int> res(Muon_correctedMom4Charge.size()); std::transform(Muon_correctedMom4Charge.begin(), Muon_correctedMom4Charge.end(), res.begin(), [](const auto &x) { return x.second; }); return res;")
-
     return df
 
-def define_corrected_muons_from_gensmear(df):
-    #    df = df.Define(
-    #    "isGenMuon", 
-    #    ("ROOT::VecOps::RVec<bool> res(GenPart_pt.size());"
-    #     "for (int i = 0; i < GenPart_pt.size(); i ++) {"
-    #     "res[i] = abs(GenPart_pdgId[i]) = 13 ? 1 : 0;"
-    #    )
+def define_gen_muons_from_reco_match(df, reco_subset = "goodMuons"):
+    df = df.Define("goodMuons_idx", f"Muon_genPartIdx[{reco_subset}]")
+    df = df.Define("GenMuon_pt", f"ROOT::VecOps::Take(GenPart_pt, goodMuons_idx)")
+    df = df.Define("GenMuon_eta",f"ROOT::VecOps::Take(GenPart_eta, goodMuons_idx)")
+    df = df.Define("GenMuon_phi", f"ROOT::VecOps::Take(GenPart_phi, goodMuons_idx)")
+    df = df.Define("GenMuon_pdgId", f"ROOT::VecOps::Take(GenPart_pdgId, goodMuons_idx)")
+    df = df.Define(
+        "GenMuon_charge", (
+            "ROOT::VecOps::RVec<int> res(GenMuon_pdgId.size());"
+            "for (int i = 0; i < GenMuon_pdgId.size(); i++) {"
+            "res[i] = GenMuon_pdgId[i] > 0 ? -1 : 1;}"
+            "return res;"
+        )
+    )
+    return df
+
+def define_gen_muons_by_MC_truth(df, sort_key = None, sorted_cols_suffix = "_sorted"):
     df = df.Define(
         "isPrompt", 
         (
@@ -108,32 +119,23 @@ def define_corrected_muons_from_gensmear(df):
         )
     )
     df = df.Define("GenMuon_pt", "GenPart_pt[abs(GenPart_pdgId) == 13 && GenPart_status == 1 && isPrompt]")
-
     df = df.Define("GenMuon_eta", "GenPart_eta[abs(GenPart_pdgId) == 13 && GenPart_status == 1 && isPrompt]")
     df = df.Define("GenMuon_phi", "GenPart_phi[abs(GenPart_pdgId) == 13 && GenPart_status == 1 && isPrompt]")
-    df = df.Define("GenMuon_pdgId" , "GenPart_pdgId[abs(GenPart_pdgId) == 13 && GenPart_status == 1  && isPrompt]")
+    df = df.Define("GenMuon_pdgId", "GenPart_pdgId[abs(GenPart_pdgId) == 13 && GenPart_status == 1  && isPrompt]")
     df = df.Define("GenMuon_charge", (
         "ROOT::VecOps::RVec<int> res(GenMuon_pdgId.size());"
         "for (int i = 0; i < GenMuon_pdgId.size(); i++) {"
         "res[i] = GenMuon_pdgId[i] > 0 ? -1 : 1;}"
         "return res;"
     ))
-    df = df.Define("GenMuon_pt_smeared", "wrem::smearGenVar(Muon_cvhbsMomCov, GenMuon_pdgId, GenMuon_pt, GenMuon_eta)")
-
-    df = df.Define("GenMuon_pt_sort_idx", "ROOT::VecOps::Argsort(GenMuon_pt, std::greater())")
-    df = df.Define("GenMuon_pt_sorted", "ROOT::VecOps::Take(GenMuon_pt, GenMuon_pt_sort_idx)")
-    df = df.Define("GenMuon_eta_sorted", "ROOT::VecOps::Take(GenMuon_eta, GenMuon_pt_sort_idx)")
-    df = df.Define("GenMuon_phi_sorted", "ROOT::VecOps::Take(GenMuon_phi, GenMuon_pt_sort_idx)")
-    df = df.Define("GenMuon_charge_sorted", "ROOT::VecOps::Take(GenMuon_charge, GenMuon_pt_sort_idx)")
- 
-
-    df = df.Define("GenMuon_pt_smeared_sort_idx", "ROOT::VecOps::Argsort(GenMuon_pt_smeared, std::greater())")
-    df = df.Define("GenMuon_pt_smeared_sorted", "ROOT::VecOps::Take(GenMuon_pt_smeared, GenMuon_pt_smeared_sort_idx)")
-    df = df.Define("GenMuon_eta_smeared_sorted", "ROOT::VecOps::Take(GenMuon_eta, GenMuon_pt_smeared_sort_idx)")
-    df = df.Define("GenMuon_phi_smeared_sorted", "ROOT::VecOps::Take(GenMuon_phi, GenMuon_pt_smeared_sort_idx)")
-    df = df.Define("GenMuon_charge_smeared_sorted", "ROOT::VecOps::Take(GenMuon_charge, GenMuon_pt_smeared_sort_idx)")
-
-    df = df.Define("GenMuon_smeared_match_idx", "wrem::indices_(GenMuon_pt.size())")
-    df = df.Define("selection_GenMuon_smeared_ptsorted", "ROOT::VecOps::RVec<bool> res(GenMuon_pt.size(), 0); res[0] = 1; return res")
-
+    if sort_key:
+        df = rdf_tools.sort_rdf_cols( # this adds cols_to_sort + "_sorted" to df
+            df, sort_key = sort_key, cols_to_sort = [
+                "GenMuon_pt",
+                "GenMuon_eta",
+                "GenMuon_phi",
+                "GenMuon_charge"
+            ],
+            sorted_cols_suffix = sorted_cols_suffix
+        )
     return df

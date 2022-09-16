@@ -1,5 +1,5 @@
 import argparse
-from utilities import output_tools,common
+from utilities import output_tools, common, rdf_tools
 
 parser,initargs = common.common_parser()
 
@@ -84,7 +84,7 @@ if not args.no_recoil:
     ROOT.gInterpreter.Declare('#include "lowpu_recoil.h"')
     recoilHelper = recoil_tools.Recoil("highPU")
 
-
+print("good until line 87")
 def build_graph(df, dataset):
     print("build graph", dataset.name)
     results = []
@@ -102,7 +102,6 @@ def build_graph(df, dataset):
     isZ = dataset.name in common.zprocs
     isTop = dataset.group == "Top"
     apply_theory_corr = args.theory_corr and dataset.name in corr_helpers
-    df = df.Filter("Muon_cvhbsMomCov_Vals[0] > 0")
     if noMuonCorr:
         df = df.Alias("Muon_correctedPt", "Muon_pt")
         df = df.Alias("Muon_correctedEta", "Muon_eta")
@@ -117,15 +116,20 @@ def build_graph(df, dataset):
             df = df.Alias("Muon_correctedCharge", "Muon_cvhbsCharge")
         elif isW or isZ:
             df = df.Define("Muon_cvhbsMomCov", "wrem::splitNestedRVec(Muon_cvhbsMomCov_Vals, Muon_cvhbsMomCov_Counts)")
+            df = df.Filter(
+                "ROOT::VecOps::RVec<bool> res(Muon_cvhbsMomCov.size());"
+                "for (int i = 0; i < Muon_cvhbsMomCov.size(); i ++) {"
+                "res[i] = (Muon_cvhbsMomCov[i][0] > 0 && Muon_cvhbsMomCov[i][0] < 1); }"
+                "return (All(res) && Muon_cvhbsMomCov[0][0] != 0)"
+            )
             df = wremnants.define_corrected_muons(df, calibration_helper)
-            df = wremnants.define_corrected_muons_from_gensmear(df)
         else:
             # no track refit available for background monte carlo samples and this is "good enough"
             df = df.Alias("Muon_correctedPt", "Muon_pt")
             df = df.Alias("Muon_correctedEta", "Muon_eta")
             df = df.Alias("Muon_correctedPhi", "Muon_phi")
             df = df.Alias("Muon_correctedCharge", "Muon_charge")
-
+    print("good until line 132")
     # n.b. charge = -99 is a placeholder for invalid track refit/corrections (mostly just from tracks below
     # the pt threshold of 8 GeV in the nano production)
     df = df.Define("vetoMuonsPre", "Muon_looseId && abs(Muon_dxybs) < 0.05 && Muon_correctedCharge != -99")
@@ -152,44 +156,67 @@ def build_graph(df, dataset):
     df = df.Define("goodMuons_phi0_uncrct", "Muon_phi[goodMuons][0]")
     df = df.Define("goodMuons_charge0_uncrct", "Muon_charge[goodMuons][0]")
 
-    # the GEN muon kinematics
-    df = df.Define("goodMuons_pt0_gen", "GenMuon_pt_sorted[0]")
-    df = df.Define("goodMuons_eta0_gen", "GenMuon_eta_sorted[0]")
-    df = df.Define("goodMuons_phi0_gen", "GenMuon_phi_sorted[0]")
-    df = df.Define("goodMuons_charge0_gen", "GenMuon_charge_sorted[0]")
-
-    # the GEN muon kinematics with smearing matching variances in cov mat for track fit parameters
-    df = df.Define("goodMuons_pt0_gen_smeared", "GenMuon_pt_smeared_sorted[0]")
-    df = df.Define("goodMuons_eta0_gen_smeared", "GenMuon_eta_smeared_sorted[0]")
-    df = df.Define("goodMuons_phi0_gen_smeared", "GenMuon_phi_smeared_sorted[0]")
-    df = df.Define("goodMuons_charge0_gen_smeared", "GenMuon_charge_smeared_sorted[0]")
-
+    # define GEN muon kinematics
+    #if dataset.is_data:
+    if True:
+        df = wremnants.define_gen_muons_from_reco_match(df, reco_subset = "goodMuons")
+        df = df.Define("goodMuons_pt0_gen", "GenMuon_pt[0]")
+        df = df.Define("goodMuons_eta0_gen", "GenMuon_eta[0]")
+        df = df.Define("goodMuons_phi0_gen", "GenMuon_phi[0]")
+        df = df.Define("goodMuons_charge0_gen", "GenMuon_charge[0]")
+        df = df.Define("GenMuon_pt_smeared", "wrem::smearGenVar(Muon_cvhbsMomCov, GenMuon_pdgId, GenMuon_pt, GenMuon_eta, goodMuons)")
+        df = df.Define("GenMuon_eta_smeared", "GenMuon_eta")
+        df = df.Define("GenMuon_phi_smeared", "GenMuon_phi")
+        df = df.Define("GenMuon_charge_smeared", "GenMuon_charge")
+        df = df.Define("goodMuons_pt0_gen_smeared", "GenMuon_pt_smeared[0]")
+        df = df.Define("goodMuons_eta0_gen_smeared", "GenMuon_eta_smeared[0]")
+        df = df.Define("goodMuons_phi0_gen_smeared", "GenMuon_phi_smeared[0]")
+        df = df.Define("goodMuons_charge0_gen_smeared", "GenMuon_charge_smeared[0]")
+    else:
+        df = wremnants.define_gen_muons_by_MC_truth(df, sort_key = "GenMuon_pt")
+        df = df.Define("goodMuons_pt0_gen", "GenMuon_pt_sorted[0]")
+        df = df.Define("goodMuons_eta0_gen", "GenMuon_eta_sorted[0]")
+        df = df.Define("goodMuons_phi0_gen", "GenMuon_phi_sorted[0]")
+        df = df.Define("goodMuons_charge0_gen", "GenMuon_charge_sorted[0]")
+        # smear the GEN muon kinematics to match vars from the cov. matrix of track fit parameters
+        df = df.Define("GenMuon_pt_smeared", "wrem::smearGenVar(Muon_cvhbsMomCov, GenMuon_pdgId, GenMuon_pt, GenMuon_eta, goodMuons)")
+        df = df.Define("GenMuon_eta_smeared", "GenMuon_eta")
+        df = df.Define("GenMuon_phi_smeared", "GenMuon_phi")
+        df = df.Define("GenMuon_charge_smeared", "GenMuon_charge")
+        df = rdf_tools.sort_rdf_cols(df, sort_key = "GenMuon_pt_smeared", cols_to_sort = [
+            "GenMuon_pt_smeared",
+            "GenMuon_eta_smeared",
+            "GenMuon_phi_smeared",
+            "GenMuon_charge_smeared"
+            ],
+        )
+        df = df.Define("goodMuons_pt0_gen_smeared", "GenMuon_pt_smeared_sorted[0]")
+        df = df.Define("goodMuons_eta0_gen_smeared", "GenMuon_eta_smeared_sorted[0]")
+        df = df.Define("goodMuons_phi0_gen_smeared", "GenMuon_phi_smeared_sorted[0]")
+        df = df.Define("goodMuons_charge0_gen_smeared", "GenMuon_charge_smeared_sorted[0]")
+    print("good until line 197")
     # corrected RECO / GEN
     df = df.Define("goodMuons_pt0_crctd_over_gen", "goodMuons_pt0/goodMuons_pt0_gen")
     df = df.Define("goodMuons_eta0_crctd_over_gen", "goodMuons_eta0/goodMuons_eta0_gen")
     df = df.Define("goodMuons_phi0_crctd_over_gen", "goodMuons_phi0/goodMuons_phi0_gen")
-    df = df.Define("goodMuons_charge0_crctd_over_gen", "goodMuons_charge0/goodMuons_charge0_gen")
 
     # cvhbs RECO / GEN
     df = df.Define("goodMuons_pt0_cvhbs_over_gen", "goodMuons_pt0_cvhbs/goodMuons_pt0_gen")
     df = df.Define("goodMuons_eta0_cvhbs_over_gen", "goodMuons_eta0_cvhbs/goodMuons_eta0_gen")
     df = df.Define("goodMuons_phi0_cvhbs_over_gen", "goodMuons_phi0_cvhbs/goodMuons_phi0_gen")
-    df = df.Define("goodMuons_charge0_cvhbs_over_gen", "goodMuons_charge0_cvhbs/goodMuons_charge0_gen")
 
     # uncorrected RECO / GEN
     df = df.Define("goodMuons_pt0_uncrct_over_gen", "goodMuons_pt0_uncrct/goodMuons_pt0_gen")
     df = df.Define("goodMuons_eta0_uncrct_over_gen", "goodMuons_eta0_uncrct/goodMuons_eta0_gen")
     df = df.Define("goodMuons_phi0_uncrct_over_gen", "goodMuons_phi0_uncrct/goodMuons_phi0_gen")
-    df = df.Define("goodMuons_charge0_uncrct_over_gen", "goodMuons_charge0_uncrct/goodMuons_charge0_gen")
 
     # smeared GEN / GEN
     df = df.Define("goodMuons_pt0_gen_smeared_over_gen", "goodMuons_pt0_gen_smeared/goodMuons_pt0_gen")
     df = df.Define("goodMuons_eta0_gen_smeared_over_gen", "goodMuons_eta0_gen_smeared/goodMuons_eta0_gen")
     df = df.Define("goodMuons_phi0_gen_smeared_over_gen", "goodMuons_phi0_gen_smeared/goodMuons_phi0_gen")
-    df = df.Define("goodMuons_charge0_gen_smeared_over_gen", "goodMuons_charge0_gen_smeared/goodMuons_charge0_gen")
 
     df = df.Define("goodMuons_pfRelIso04_all0", "Muon_pfRelIso04_all[goodMuons][0]")
-
+    print("good until line 219")
     #TODO improve this to include muon mass?
     df = df.Define("transverseMass", "wrem::mt_2(goodMuons_pt0, goodMuons_phi0, DeepMETResolutionTune_pt, DeepMETResolutionTune_phi)")
 
@@ -208,12 +235,13 @@ def build_graph(df, dataset):
     # df = df.Define("goodTrigObjs", "wrem::goodMuonTriggerCandidate(TrigObj_id,TrigObj_filterBits)")
     df = df.Filter("wrem::hasTriggerMatch(goodMuons_eta0,goodMuons_phi0,TrigObj_eta[goodTrigObjs],TrigObj_phi[goodTrigObjs])")
     df = df.Filter("Flag_globalSuperTightHalo2016Filter && Flag_EcalDeadCellTriggerPrimitiveFilter && Flag_goodVertices && Flag_HBHENoiseIsoFilter && Flag_HBHENoiseFilter && Flag_BadPFMuonFilter")
-
+    
     # gen match to bare muons to select only prompt muons from top processes
     if isTop:
         df = df.Define("postFSRmuons", "GenPart_status == 1 && (GenPart_statusFlags & 1) && abs(GenPart_pdgId) == 13")
         df = df.Filter("wrem::hasMatchDR2(goodMuons_eta0,goodMuons_phi0,GenPart_eta[postFSRmuons],GenPart_phi[postFSRmuons],0.09)")
-    
+    print("good until line 243")
+   
     nominal_cols = [
         "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0",
         "passIso", "passMT"
@@ -234,22 +262,17 @@ def build_graph(df, dataset):
         "goodMuons_eta0_gen_smeared", "goodMuons_pt0_gen_smeared", "goodMuons_charge0_gen_smeared",
         "passIso", "passMT"
     ]
-
     nominal_cols_crctd_over_gen = [
-        "goodMuons_eta0_crctd_over_gen", "goodMuons_pt0_crctd_over_gen", "goodMuons_charge0_crctd_over_gen",
-        "passIso", "passMT"
+        "goodMuons_pt0_crctd_over_gen"
     ]
     nominal_cols_cvhbs_over_gen = [
-        "goodMuons_eta0_cvhbs_over_gen", "goodMuons_pt0_cvhbs_over_gen", "goodMuons_charge0_cvhbs_over_gen",
-        "passIso", "passMT"
+        "goodMuons_pt0_cvhbs_over_gen"
     ]
     nominal_cols_uncrct_over_gen = [
-        "goodMuons_eta0_uncrct_over_gen", "goodMuons_pt0_uncrct_over_gen", "goodMuons_charge0_uncrct_over_gen",
-        "passIso", "passMT"
+        "goodMuons_pt0_uncrct_over_gen"
     ]
     nominal_cols_gen_smeared_over_gen = [
-        "goodMuons_eta0_gen_smeared_over_gen", "goodMuons_pt0_gen_smeared_over_gen", "goodMuons_charge0_gen_smeared_over_gen",
-        "passIso", "passMT"
+        "goodMuons_pt0_gen_smeared_over_gen"
     ]
 
     if dataset.is_data:
@@ -278,13 +301,11 @@ def build_graph(df, dataset):
         nominal_gen =         df.HistoBoost("nominal_gen", nominal_axes, [*nominal_cols_gen, "nominal_weight"])
         nominal_gen_smeared = df.HistoBoost("nominal_gen_smeared", nominal_axes, [*nominal_cols_gen_smeared, "nominal_weight"])
 
-        axis_pt_reco_over_gen = hist.axis.Regular(1000, 0.95, 1.05, underflow=True, overflow=True, name = "pt_reco_over_gen")
-        axis_eta_reco_over_gen = hist.axis.Regular(800, 0.6, 1.4, underflow=True, overflow=True, name = "eta_reco_over_gen")
-        reco_over_gen_axes = [axis_pt_reco_over_gen, axis_eta_reco_over_gen, axis_charge, axis_passIso, axis_passMT]
-        crctd_over_gen =  df.HistoBoost("crctd_over_gen", reco_over_gen_axes, [*nominal_cols_crctd_over_gen, "nominal_weight"])
-        cvhbs_over_gen =  df.HistoBoost("cvhbs_over_gen", reco_over_gen_axes, [*nominal_cols_cvhbs_over_gen, "nominal_weight"])
-        uncrct_over_gen = df.HistoBoost("uncrct_over_gen", reco_over_gen_axes, [*nominal_cols_uncrct_over_gen, "nominal_weight"])
-        gen_smeared_over_gen = df.HistoBoost("gen_smeared_over_gen", reco_over_gen_axes, [*nominal_cols_gen_smeared_over_gen, "nominal_weight"])
+        axis_pt_reco_over_gen = hist.axis.Regular(1000, 0.9, 1.1, underflow=True, overflow=True, name = "reco_pt_over_gen")
+        crctd_over_gen =  df.HistoBoost("crctd_over_gen", [axis_pt_reco_over_gen], [*nominal_cols_crctd_over_gen, "nominal_weight"])
+        cvhbs_over_gen =  df.HistoBoost("cvhbs_over_gen", [axis_pt_reco_over_gen], [*nominal_cols_cvhbs_over_gen, "nominal_weight"])
+        uncrct_over_gen = df.HistoBoost("uncrct_over_gen", [axis_pt_reco_over_gen], [*nominal_cols_uncrct_over_gen, "nominal_weight"])
+        gen_smeared_over_gen = df.HistoBoost("gen_smeared_over_gen", [axis_pt_reco_over_gen], [*nominal_cols_gen_smeared_over_gen, "nominal_weight"])
 
         results.append(nominal)
         results.append(nominal_cvhbs)
@@ -329,6 +350,8 @@ def build_graph(df, dataset):
                 
         # n.b. this is the W analysis so mass weights shouldn't be propagated
         # on the Z samples (but can still use it for dummy muon scale)
+        print("good until line 353")
+        
         if isW or isZ:
 
             df = theory_tools.define_scale_tensor(df)
@@ -352,7 +375,7 @@ def build_graph(df, dataset):
             df, masswhist = syst_tools.define_mass_weights(df, isW, *masswargs)
             if masswhist:
                 results.append(masswhist)
-
+        
             # Don't think it makes sense to apply the mass weights to scale leptons from tau decays
             if not "tau" in dataset.name:
                 # TODO: Move to syst_tools
@@ -365,87 +388,55 @@ def build_graph(df, dataset):
                                                    tensor_axes=[down_up_axis, scale_etabins_axis])
 
                 results.append(dummyMuonScaleSyst)
-
+            
             df = df.Define("unity", "1.0")
-            '''
-            df = df.Define("muonScaleSyst_responseWeights_tensor", calibration_uncertainty_helper,
-                           ["Muon_correctedPt",
-                            "Muon_correctedEta",
-                            "Muon_correctedPhi",
-                            "Muon_correctedCharge",
-                            "Muon_genPartIdx",
-                            "Muon_cvhbsMomCov",
-                            "vetoMuonsPre",
-                            "GenPart_pt",
-                            "GenPart_eta",
-                            "GenPart_phi",
-                            "GenPart_pdgId",
-                            "GenPart_statusFlags",
-                            "nominal_weight"
-                           ])
-
-            dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
-            results.append(dummyMuonScaleSyst_responseWeights)
-
-            df = df.Define("muonScaleSyst_smearingWeightsPerSe_tensor", calibration_uncertainty_helper,
-                           ["Muon_correctedPt",
-                            "Muon_correctedEta",
-                            "Muon_correctedPhi",
-                            "Muon_correctedCharge",
-                            "Muon_genPartIdx",
-                            "Muon_cvhbsMomCov",
-                            "vetoMuonsPre",
-                            "GenPart_pt",
-                            "GenPart_eta",
-                            "GenPart_phi",
-                            "GenPart_pdgId",
-                            "GenPart_statusFlags",
-                            "unity"
-                           ])
-            '''
+            df = df.Define("GenMuon_smeared_match_idx", "wrem::indices_(GenMuon_pt.size())")
+            df = df.Define("selection_GenMuon_smeared_ptsorted", "ROOT::VecOps::RVec<bool> res(GenMuon_pt.size(), 0); res[0] = 1; return res")
             df = df.Define("muonScaleSyst_responseWeights_tensor_gensmear", calibration_uncertainty_helper,
-                           ["GenMuon_pt_smeared_sorted",
-                            "GenMuon_eta_smeared_sorted",
-                            "GenMuon_phi_smeared_sorted",
-                            "GenMuon_charge_smeared_sorted",
+                           ["GenMuon_pt_smeared",
+                            "GenMuon_eta_smeared",
+                            "GenMuon_phi_smeared",
+                            "GenMuon_charge_smeared",
                             "Muon_genPartIdx",
                             "Muon_cvhbsMomCov",
                             "vetoMuonsPre",
-                            "GenMuon_pt_sorted",
-                            "GenMuon_eta_sorted",
-                            "GenMuon_phi_sorted",
-                            "GenMuon_charge_sorted",
+                            "GenMuon_pt",
+                            "GenMuon_eta",
+                            "GenMuon_phi",
+                            "GenMuon_charge",
                             "GenPart_statusFlags",
-                            "nominal_weight"
+                            "nominal_weight",
+                            "goodMuons"
                            ])
 
             dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights_gensmear", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor_gensmear"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
             results.append(dummyMuonScaleSyst_responseWeights)
 
             df = df.Define("muonScaleSyst_smearingWeightsPerSe_tensor", calibration_uncertainty_helper,
-                           ["GenMuon_pt_smeared_sorted",
-                            "GenMuon_eta_smeared_sorted",
-                            "GenMuon_phi_smeared_sorted",
-                            "GenMuon_charge_smeared_sorted",
+                           ["GenMuon_pt_smeared",
+                            "GenMuon_eta_smeared",
+                            "GenMuon_phi_smeared",
+                            "GenMuon_charge_smeared",
                             "Muon_genPartIdx",
                             "Muon_cvhbsMomCov",
                             "vetoMuonsPre",
-                            "GenMuon_pt_sorted",
-                            "GenMuon_eta_sorted",
-                            "GenMuon_phi_sorted",
-                            "GenMuon_charge_sorted",
+                            "GenMuon_pt",
+                            "GenMuon_eta",
+                            "GenMuon_phi",
+                            "GenMuon_charge",
                             "GenPart_statusFlags",
-                            "unity"
+                            "unity",
+                            "goodMuons"
                            ])
             df = df.Define("smearing_weights_down", "muonScaleSyst_smearingWeightsPerSe_tensor(0,0)")
             df = df.Define("smearing_weights_up", "muonScaleSyst_smearingWeightsPerSe_tensor(0,1)")
-
-            axis_smearing_weight = hist.axis.Regular(1000, 0.95, 1.05, underflow=True, overflow=True, name = "smearing_weight")
+    '''
+            axis_smearing_weight = hist.axis.Regular(1000, 0.9, 1.1, underflow=True, overflow=True, name = "smearing_weight")
             smearing_weights_down = df.HistoBoost("smearing_weights_down", [*nominal_axes, axis_smearing_weight], [*nominal_cols, "smearing_weights_down"])
             smearing_weights_up = df.HistoBoost("smearing_weights_up", [*nominal_axes, axis_smearing_weight], [*nominal_cols, "smearing_weights_up"])
             results.append(smearing_weights_down)
             results.append(smearing_weights_up)
-
+            print("good until line 475")
             df = df.Define("goodMuons_pt0_scaleUp_mil", "goodMuons_pt0 * 1.001")
             df = df.Define("goodMuons_pt0_scaleDn_mil", "goodMuons_pt0 / 1.001")
             df = df.Define("goodMuons_pt0_scaleUp_tenthmil", "goodMuons_pt0 * 1.0001")
@@ -482,8 +473,10 @@ def build_graph(df, dataset):
                 [*nominal_cols, "nominal_weights_perse"]
             )
             results.append(nominal_weights_hist)
-
+            print("good until line 512")
+    '''
     return results, weightsum
 
 resultdict = narf.build_and_run(datasets, build_graph)
+print("good until line 516")
 output_tools.write_analysis_output(resultdict, "mw_with_mu_eta_pt.pkl.lz4", args.postfix)

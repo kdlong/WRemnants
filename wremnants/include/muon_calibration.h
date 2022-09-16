@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <fstream>
+#include <typeinfo>
+#include <algorithm>
 
 namespace wrem {
 
@@ -276,16 +278,26 @@ public:
                       const RVec<float> &genPhis,
                       const RVec<int> &genCharge,
                       const RVec<int> &genStatusFlags,
-                      double nominal_weight) const {
+                      double nominal_weight,
+                      const RVec<int> &goodMuons) const {
 
     //TODO move this into a helper
 
 
     out_tensor_t res;
     res.setConstant(nominal_weight);
-    if (momcovs[0].size() > 0) {
-        res *= scale_res_weight(pts[0], etas[0], phis[0], charges[0], genPts[0], genEtas[0], genPhis[0], genCharge[0], momcovs[0]);
-    }
+    if (goodMuons.size() != momcovs.size()) {cout << "mismatch between goodmuon and cov";}
+    if (momcovs[goodMuons][0].size() == 0) {cout << "0 entries in cov";}
+    if (pts.size() == 0) {cout << "pts" << std::endl;}
+    if (etas.size() == 0) {cout << "etas" << std::endl;}
+    if (phis.size() == 0) {cout << "phis" << std::endl;}
+    if (charges.size() == 0) {cout << "charges" << std::endl;}
+    if (genPts.size() == 0) {cout << "genPts" << std::endl;}
+    if (genEtas.size() == 0) {cout << "genEtas" << std::endl;}
+    if (genPhis.size() == 0) {cout << "genPhis" << std::endl;}
+    if (genCharge.size() == 0) {cout << "genCharge" << std::endl;}
+
+//    res *= scale_res_weight(pts[0], etas[0], phis[0], charges[0], genPts[0], genEtas[0], genPhis[0], genCharge[0], momcovs[goodMuons][0]);
     return res;
   }
 
@@ -395,16 +407,17 @@ private:
 */
 
   out_tensor_t scale_res_weight(double pt, double eta, double phi, int charge, double genPt, double genEta, double genPhi, int genCharge, const RVec<float> &cov) const {
-
+    /*
     const double theta = 2.*std::atan(std::exp(-double(eta)));
     const double lam = M_PI_2 - theta;
     const double p = double(pt)/std::sin(theta);
     const double qop = double(charge)/p;
-
-    //if(isnan(pt)) {cout << "pt \n";}
-    //if(isnan(genPt)) {cout << "genPt \n";}
+    //if (isnan(qop) || isnan(lam) || isnan(theta)) {cout << "P \n";}
+    //if(isnan(pt) || isnan(eta) || isnan(phi) || isnan(charge)) {cout << "smearing \n";}
+    //if(isnan(genPt) || isnan(genEta) || isnan(genPhi) || isnan(genCharge)) {cout << "gen \n";}
     const double parms = qop;
 
+    //if (isnan(parms)) {cout << "parms \n";}
     const double gentheta = 2.*std::atan(std::exp(-double(genEta)));
     const double genlam = M_PI_2 - gentheta;
     const double genp = double(genPt)/std::sin(gentheta);
@@ -414,21 +427,29 @@ private:
     const double genparms = genqop;
 
     //if (isnan(genparms)) {cout << "genparms \n";}
+    //if (pt == 0) {cout << "pt is zero \n";}
+    //if (genPt == 0) {cout << "genPt is zero \n";}
 
     const double deltaparms = parms - genparms;
-
+    //if (isnan(deltaparms)) {
+    //    cout << "deltaparms \n";
+    //    cout << "parms is " << parms << std::endl;
+    //    cout << "genparms is " << genparms << std::endl;  
+    //    cout << "theta is " << theta << std::endl;
+    //    cout << "pt is " << pt << std::endl;
+    //}
     const Eigen::Map<const Eigen::Matrix<float, 3, 3, Eigen::RowMajor>> covMap(cov.data(), 3, 3);
 
     const double covd = covMap.cast<double>()(0,0);
-    
+    if (isnan(covd)) {cout << "covd \n";}
     const double covinv = 1 / covd;
     const double covdet = covd;
 
     const double lnp = -0.5*deltaparms*covinv*deltaparms;
-
+    */
     // no need to initialize since all elements are explicit filled
     out_tensor_t res;
-
+    /*
     const auto &varparms = hist_->at(hist_->template axis<0>().index(genEta)).data();
 
     for (std::ptrdiff_t ivar = 0; ivar < nvars; ++ivar) {
@@ -461,17 +482,18 @@ private:
         const double lnpalt = -0.5*deltaparmsalt*covinvalt*deltaparmsalt;
 
         const double weight = std::sqrt(covdet/covdetalt)*std::exp(lnpalt - lnp);
-        //if (isnan(covinvalt)) {cout << "covinvalt \n";}
-        //if (isnan(covinv)) {cout << "covinv \n";}
-        //if (isnan(deltaparmsalt)) {cout << "deltaparmsalt \n";}
-        //if (isnan(deltaparms)) {cout << "deltaparms \n";}
-       // if (isnan(covdet)) {cout << "covdet \n";}
-       // if (isnan(covdetalt)) {cout << "covdetalt \n";}
-       // if (isnan(lnpalt)) {cout << "lnpalt \n";}
-       // if (isnan(lnp)) {cout << "lnp \n";}
-        // if (isnan(weight)) {cout << "smearing weight is NaN \n";}
-
-        /*
+        
+        if (isnan(covinvalt)) {cout << "covinvalt \n";}
+        if (isnan(covinv)) {cout << "covinv \n";}
+        if (isnan(deltaparmsalt)) {cout << "deltaparmsalt \n";}
+        if (isnan(deltaparms)) {cout << "deltaparms \n";}
+        if (isnan(covdet)) {cout << "covdet \n";}
+        if (isnan(covdetalt)) {cout << "covdetalt \n";}
+        if (isnan(lnpalt)) {cout << "lnpalt \n";}
+        if (isnan(lnp)) {cout << "lnp \n";}
+        if (isnan(weight)) {cout << "smearing weight is NaN \n";}
+        
+        
         if (false) {
           if (std::isnan(weight) || std::isinf(weight) || std::fabs(weight) == 0.) {
             std::cout << "invalid weight: " << weight << std::endl;
@@ -496,11 +518,14 @@ private:
             std::cout << "covinvalt\n" << covinvalt << std::endl;
           }
         }
-        */
+        
+
         // protect against outliers
+        // if (weight > 0.9998 && weight < 1.0002) {cout << "smearing weight is " << weight << "covd is " << covd << std::endl;}
         res(ivar, idownup) = std::min(weight, maxWeight_);
       }
     }
+    */
     return res;
   }
   std::shared_ptr<const HIST> hist_;
@@ -517,29 +542,40 @@ private:
     }
 
     RVec<float> smearGenVar(
-        RVec<RVec<float>> covMat,
+        RVec<RVec<float>> cov,
         RVec<int> genPdgId,
         RVec<float> genPt,
-        RVec<float> genEta
+        RVec<float> genEta,
+        RVec<int> goodMuons
     ) {
-        RVec<Double_t> res(genPt.size());
-
-        //for (int i = 0; i < covMat.size(); i++) {
-        //    for (int j = 0; j < covMat[i].size(); j++) {
-        //        cout << "CovMat[" << i << "][" << j << "] is" << covMat[i][j] << "\n";
-        //    }
-        //}
-        double sigma2_qop = covMat[0][0];
-        TRandom *evt_generator = new TRandom();
+        /*
+        int goodmuon_idx = -1;
+        float sigma2_qop = 0;
+        for (int i = 0; i < goodmuons.size(); i++) {
+            if (goodmuons[i]) {
+                goodmuon_idx = i;
+                break;
+            }
+        }
+        if (goodmuon_idx < 0) {cout << "no goodMuons found! " << std::endl; sigma2_qop = 0;}
+        else {sigma2_qop = cov[goodmuon_idx][0]; cout << sigma2_qop;}
+        */
+        RVec<double> res(genPt.size());
+        /*
+        float sigma2_qop = cov[goodMuons][0][0];
+        if (!(sigma2_qop)) {cout << "sigma2_qop is zero" << std::endl;}
+        
         for (int i = 0; i < genPt.size(); i++) {
             int q = genPdgId[i] > 0 ? -1 : 1;
             double pt = genPt[i];
             double eta = genEta[i];
             double theta = 2 * atan(exp(-1 * eta));
-            double sigma2_pt = pow(pt, 2) / (abs(q * sin(theta))) * sigma2_qop;
-
-            res[i] = evt_generator->Gaus(genPt[i], sqrt(sigma2_pt));
+            double sigma2_pt = pow((pow(pt, 2) / (q * sin(theta))), 2) * sigma2_qop;
+            res[i] = gRandom -> Gaus(pt, sqrt(sigma2_pt));
+            if (i == 0 && res[i] == 0) {cout << "smeared pt is zero";}
+            if (res[i] == 0) {cout << "smeared pt that is not goodmuon is zero";}
         }
+        */
         return res;
     }
     

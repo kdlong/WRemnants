@@ -400,7 +400,11 @@ Vec_f breitWignerWeights(double massVgen, int type=0) {
     return res;
 }
 
+
+int firstNonzeroEntry(Vec_i& vec) {
+    return std::distance(std::begin(vec), find_if(std::begin(vec), std::end(vec), [](auto x) { return x != 0; }));
 }
 
+}
 
 #endif

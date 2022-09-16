@@ -137,24 +137,26 @@ def build_graph(df, dataset):
     df = df.Filter("Sum(vetoMuons) == 1")
     df = df.Define("goodMuons", "vetoMuons && Muon_mediumId && Muon_isGlobal")
     df = df.Filter("Sum(goodMuons) == 1")
+    df = df.Define("selectedMuIdx", "wrem::firstNonzeroEntry(goodMuons)")
+    #df = df.Define("selectedMuIdx", "0")
 
     # the corrected RECO muon kinematics, which is intended to be used as the nominal
-    df = df.Define("goodMuons_pt0", "Muon_correctedPt[goodMuons][0]")
-    df = df.Define("goodMuons_eta0", "Muon_correctedEta[goodMuons][0]")
-    df = df.Define("goodMuons_phi0", "Muon_correctedPhi[goodMuons][0]")
-    df = df.Define("goodMuons_charge0", "Muon_correctedCharge[goodMuons][0]")
+    df = df.Define("goodMuons_pt0", "Muon_correctedPt[selectedMuIdx]")
+    df = df.Define("goodMuons_eta0", "Muon_correctedEta[selectedMuIdx]")
+    df = df.Define("goodMuons_phi0", "Muon_correctedPhi[selectedMuIdx]")
+    df = df.Define("goodMuons_charge0", "Muon_correctedCharge[selectedMuIdx]")
 
     # the cvhbs RECO muon kinematics, on top of which the corrections are applied to get nominal
-    df = df.Define("goodMuons_pt0_cvhbs", "Muon_cvhbsPt[goodMuons][0]")
-    df = df.Define("goodMuons_eta0_cvhbs", "Muon_cvhbsEta[goodMuons][0]")
-    df = df.Define("goodMuons_phi0_cvhbs", "Muon_cvhbsPhi[goodMuons][0]")
-    df = df.Define("goodMuons_charge0_cvhbs", "Muon_cvhbsCharge[goodMuons][0]")
+    df = df.Define("goodMuons_pt0_cvhbs", "Muon_cvhbsPt[selectedMuIdx]")
+    df = df.Define("goodMuons_eta0_cvhbs", "Muon_cvhbsEta[selectedMuIdx]")
+    df = df.Define("goodMuons_phi0_cvhbs", "Muon_cvhbsPhi[selectedMuIdx]")
+    df = df.Define("goodMuons_charge0_cvhbs", "Muon_cvhbsCharge[selectedMuIdx]")
 
     # the uncorrected RECO muon kinematics
-    df = df.Define("goodMuons_pt0_uncrct", "Muon_pt[goodMuons][0]")
-    df = df.Define("goodMuons_eta0_uncrct", "Muon_eta[goodMuons][0]")
-    df = df.Define("goodMuons_phi0_uncrct", "Muon_phi[goodMuons][0]")
-    df = df.Define("goodMuons_charge0_uncrct", "Muon_charge[goodMuons][0]")
+    df = df.Define("goodMuons_pt0_uncrct", "Muon_pt[selectedMuIdx]")
+    df = df.Define("goodMuons_eta0_uncrct", "Muon_eta[selectedMuIdx]")
+    df = df.Define("goodMuons_phi0_uncrct", "Muon_phi[selectedMuIdx]")
+    df = df.Define("goodMuons_charge0_uncrct", "Muon_charge[selectedMuIdx]")
 
     # define GEN muon kinematics
     #if dataset.is_data:
@@ -215,7 +217,7 @@ def build_graph(df, dataset):
     df = df.Define("goodMuons_eta0_gen_smeared_over_gen", "goodMuons_eta0_gen_smeared/goodMuons_eta0_gen")
     df = df.Define("goodMuons_phi0_gen_smeared_over_gen", "goodMuons_phi0_gen_smeared/goodMuons_phi0_gen")
 
-    df = df.Define("goodMuons_pfRelIso04_all0", "Muon_pfRelIso04_all[goodMuons][0]")
+    df = df.Define("goodMuons_pfRelIso04_all0", "Muon_pfRelIso04_all[selectedMuIdx]")
     print("good until line 219")
     #TODO improve this to include muon mass?
     df = df.Define("transverseMass", "wrem::mt_2(goodMuons_pt0, goodMuons_phi0, DeepMETResolutionTune_pt, DeepMETResolutionTune_phi)")
@@ -235,6 +237,7 @@ def build_graph(df, dataset):
     # df = df.Define("goodTrigObjs", "wrem::goodMuonTriggerCandidate(TrigObj_id,TrigObj_filterBits)")
     df = df.Filter("wrem::hasTriggerMatch(goodMuons_eta0,goodMuons_phi0,TrigObj_eta[goodTrigObjs],TrigObj_phi[goodTrigObjs])")
     df = df.Filter("Flag_globalSuperTightHalo2016Filter && Flag_EcalDeadCellTriggerPrimitiveFilter && Flag_goodVertices && Flag_HBHENoiseIsoFilter && Flag_HBHENoiseFilter && Flag_BadPFMuonFilter")
+    
     
     # gen match to bare muons to select only prompt muons from top processes
     if isTop:
@@ -405,8 +408,8 @@ def build_graph(df, dataset):
                             "GenMuon_phi",
                             "GenMuon_charge",
                             "GenPart_statusFlags",
+                            "selectedMuIdx",
                             "nominal_weight",
-                            "goodMuons"
                            ])
 
             dummyMuonScaleSyst_responseWeights = df.HistoBoost("muonScaleSyst_responseWeights_gensmear", nominal_axes, [*nominal_cols, "muonScaleSyst_responseWeights_tensor_gensmear"], tensor_axes = calibration_uncertainty_helper.tensor_axes)
@@ -425,8 +428,8 @@ def build_graph(df, dataset):
                             "GenMuon_phi",
                             "GenMuon_charge",
                             "GenPart_statusFlags",
+                            "selectedMuIdx",
                             "unity",
-                            "goodMuons"
                            ])
             df = df.Define("smearing_weights_down", "muonScaleSyst_smearingWeightsPerSe_tensor(0,0)")
             df = df.Define("smearing_weights_up", "muonScaleSyst_smearingWeightsPerSe_tensor(0,1)")

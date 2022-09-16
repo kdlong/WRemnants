@@ -278,16 +278,17 @@ public:
                       const RVec<float> &genPhis,
                       const RVec<int> &genCharge,
                       const RVec<int> &genStatusFlags,
-                      double nominal_weight,
-                      const RVec<int> &goodMuons) const {
+                      const int,
+                      double nominal_weight) const { //,
+                      //const RVec<int> &goodMuons) const {
 
     //TODO move this into a helper
 
 
     out_tensor_t res;
     res.setConstant(nominal_weight);
-    if (goodMuons.size() != momcovs.size()) {cout << "mismatch between goodmuon and cov";}
-    if (momcovs[goodMuons][0].size() == 0) {cout << "0 entries in cov";}
+    //if (goodMuons.size() != momcovs.size()) {cout << "mismatch between goodmuon and cov";}
+    //if (momcovs[goodMuons][0].size() == 0) {cout << "0 entries in cov";}
     if (pts.size() == 0) {cout << "pts" << std::endl;}
     if (etas.size() == 0) {cout << "etas" << std::endl;}
     if (phis.size() == 0) {cout << "phis" << std::endl;}
@@ -546,7 +547,7 @@ private:
         RVec<int> genPdgId,
         RVec<float> genPt,
         RVec<float> genEta,
-        RVec<int> goodMuons
+        RVec<bool> goodMuons
     ) {
         /*
         int goodmuon_idx = -1;

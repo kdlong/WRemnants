@@ -20,7 +20,7 @@ def broadcastSystHist(h1, h2):
     return hist.Hist(*h2.axes, data=new_vals, storage=h1._storage_type())
 
 # returns h1/h2
-def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, createNew=False):
+def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, createNew=True):
     if allowBroadcast:
         h1 = broadcastSystHist(h1, h2)
         h2 = broadcastSystHist(h2, h1)

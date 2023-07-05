@@ -140,16 +140,7 @@ def read_dyturbo_hist(filenames, path="", axes=("y", "pt"), charge=None, coeff=N
     if len(hists) > 1:
         hists = hh.rebinHistsToCommon(hists, 0)
 
-    h = hh.sumHists(hists)
-
-    if charge is not None:
-        charge_args = (2, -2., 2.) if charge != 0 else (1, 0, 1) 
-        charge_axis = hist.axis.Regular(*charge_args, flow=False, name = "charge")
-        hnew = hist.Hist(*h.axes, charge_axis, storage=h._storage_type())
-        hnew[...,charge_axis.index(charge)] = h.view(flow=True)
-        return hnew
-    else:
-        return h
+    return hh.sumHists(hists)
 
 def expand_dyturbo_filenames(path, basename, varname, pieces=["n3ll_born", "n2ll_ct", "n2lo_vj"], append=None):
     return [os.path.join(path, "_".join(filter(None, [basename, piece, varname, append]))+".txt") for piece in pieces]
@@ -392,7 +383,6 @@ def args_from_metadata(card_tool, arg):
     return meta_data["args"][arg]
 
 def get_metadata(infile):
-    import narf
     results = None
     if infile.endswith(".pkl.lz4"):
         with lz4.frame.open(infile) as f:
@@ -401,6 +391,7 @@ def get_metadata(infile):
         with open(infile, "rb") as f:
             results = pickle.load(f)
     elif infile.endswith(".hdf5"):
+        import narf
         h5file = h5py.File(infile, "r")
         results = narf.ioutils.pickle_load_h5py(h5file["results"])
 
@@ -408,3 +399,11 @@ def get_metadata(infile):
         raise ValueError("Failed to find results dict. Note that only pkl, hdf5, and pkl.lz4 file types are supported")
 
     return results["meta_info"] if "meta_info" in results else results["meta_data"]
+
+def get_scetlib_config(infile):
+    if infile.endswith(".pkl"):
+        with open(infile, "rb") as f:
+            results = pickle.load(f)
+        return results["config"]
+    else:
+        raise ValueError("Expected scetlib output in pkl format")

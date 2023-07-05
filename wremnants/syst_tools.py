@@ -192,7 +192,7 @@ def hist_to_variations(hist_in):
 
     genAxes = ["absYVgenNP", "chargeVgenNP"]
 
-    nom_hist = hist_in[{"vars" : "pdf0"}]
+    nom_hist = hist_in[{"vars" : 0}]
     nom_hist_sum = nom_hist[{genAxis : s[::hist.sum] for genAxis in genAxes}]
 
     variation_data = hist_in.view(flow=True) - nom_hist.view(flow=True)[...,None] + nom_hist_sum.view(flow=True)[..., None, None, None]

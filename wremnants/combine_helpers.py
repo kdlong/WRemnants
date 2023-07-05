@@ -32,9 +32,14 @@ def add_modeling_uncertainty(card_tool, minnlo_scale, signal_samples, background
 
     if resumType != "none":
         add_common_np_uncertainties(card_tool, signal_samples+background_samples, to_fakes)
-        add_decorrelated_np_uncertainties(card_tool, signal_samples, to_fakes, name_append=scale_name)
+        delta_omega = True
+        if delta_omega and not wmass:
+            add_Omega_np_uncertainties(card_tool, signal_samples, to_fakes, name_append=scale_name)
+        else:
+            add_decorrelated_np_uncertainties(card_tool, signal_samples, to_fakes, name_append=scale_name)
         if wmass and background_samples:
             add_decorrelated_np_uncertainties(card_tool, background_samples, to_fakes, name_append="Z")
+            #add_Omega_np_uncertainties(card_tool, background_samples, to_fakes, name_append="Z")
 
 def add_minnlo_scale_uncertainty(card_tool, scale_type, samples, to_fakes, resum, name_append="", use_hel_hist=False, rebin_pt=None):
     if not len(samples):
@@ -205,6 +210,37 @@ def add_resum_transition_uncertainty(card_tool, samples, to_fakes, name_append="
         rename=f"scetlibResumTransition{name_append}",
     )
 
+def add_Omega_np_uncertainties(card_tool, samples, to_fakes, name_append):
+    theory_unc = input_tools.args_from_metadata(card_tool, "theoryCorr")
+    # TODO: For now these are separate hists, to rerun everything together in the future
+    hist = "scetlib_dyturboNP" 
+    if "scetlib_dyturboNP" not in theory_unc:
+        raise ValueError("Did not find new scetlib non-perturbative correction")
+    hist += "Corr"
+
+    omega_name = f"scetlibOmegaNP{name_append}"
+    card_tool.addSystematic(name=hist,
+        processes=samples,
+        group="resumNonpert",
+        systAxes=["vars",],
+        passToFakes=to_fakes,
+        action=lambda h: h[{"vars" : ["Omega0.", "Omega0.7"]}],
+        outNames=[omega_name+"Down", omega_name+"Up"],
+        rename=omega_name,
+    )
+
+    domega_name = f"scetlibDeltaOmegaNP{name_append}"
+    card_tool.addSystematic(name=hist,
+        processes=samples,
+        group="resumNonpert",
+        systAxes=["vars",],
+        passToFakes=to_fakes,
+        action=lambda h: h[{"vars" : ["Delta_Omega-0.02", "Delta_Omega0.02"]}],
+        outNames=[domega_name+"Down", domega_name+"Up"],
+        rename=domega_name,
+    )
+
+
 def add_decorrelated_np_uncertainties(card_tool, samples, to_fakes, name_append, nuisances=["Omega"]):
     obs = card_tool.project[:]
     if not obs:
@@ -219,11 +255,17 @@ def add_decorrelated_np_uncertainties(card_tool, samples, to_fakes, name_append,
         card_tool.addSystematic(name=theory_hist,
             processes=samples,
             group="resumNonpert",
-            systAxes=["absYVgenNP", "chargeVgenNP", "downUpVar"],
             passToFakes=to_fakes,
-            actionMap={s : lambda h,np=np_nuisance: hh.syst_min_and_max_env_hist(syst_tools.hist_to_variations(h), obs, "vars",
-                [x for x in h.axes["vars"] if re.match(f"^{np}-*\d+", x)]) for s in expanded_samples},
-            baseName=f"scetlibNP{nuisance_name}_",
+            systAxes=["absYVgenNP", "chargeVgenNP", "vars"],
+            # Careful here... it's nasty, but the order of the replace matters
+            systNameReplace=[("0.71", "Up"), ("0.", "Down"), ],
+            action=lambda h: syst_tools.hist_to_variations(h[{"vars" : ["pdf0", "Omega0.", "Omega0.71"]}]),
+            skipEntries=[{"vars" : "pdf0"}],
+
+            #systAxes=["absYVgenNP", "chargeVgenNP", "downUpVar"],
+            #actionMap={s : lambda h,np=np_nuisance: hh.syst_min_and_max_env_hist(syst_tools.hist_to_variations(h), obs, "vars",
+            #    [x for x in h.axes["vars"] if re.match(f"^{np}-*\d+", x)]) for s in expanded_samples},
+            baseName=nuisance_name,
             rename=nuisance_name,
         )
 
@@ -248,16 +290,16 @@ def add_common_np_uncertainties(card_tool, samples, to_fakes):
 
     theory_hist = theory_unc_hist(card_tool)
 
-    for np_nuisance in ["c_nu", "omega_nu"]:
+    ranges = {"omega_nu" : [0.01, 0.4], "c_nu" : [-0.25, 0.25]}
+    for np_nuisance, nurange in ranges.items():
         nuisance_name = f"scetlibNP{np_nuisance}"
         card_tool.addSystematic(name=theory_hist,
             processes=samples,
             group="resumNonpert",
-            systAxes=["downUpVar"],
+            systAxes=["vars"],
             passToFakes=to_fakes,
-            actionMap={s : lambda h,np=np_nuisance: hh.syst_min_and_max_env_hist(h, obs, "vars",
-                [x for x in h.axes["vars"] if re.match(f"^{np}-*\d+", x)]) for s in expanded_samples},
-            outNames=[f"{nuisance_name}Up", f"{nuisance_name}Down"],
+            action=lambda h,np=np_nuisance,nr=nurange: h[{"vars" : [f"{np}{r}" for r in nr]}],
+            outNames=[f"{nuisance_name}Down", f"{nuisance_name}Up"],
             rename=nuisance_name,
         )
 

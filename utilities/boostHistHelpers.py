@@ -6,32 +6,32 @@ from utilities import common, logging
 
 logger = logging.child_logger(__name__)
 
-def valsAndVariances(h1, h2):
-    return h1.values(flow=True),h2.values(flow=True),h1.variances(flow=True),h2.variances(flow=True)
+def valsAndVariances(h1, h2, flow=True):
+    return h1.values(flow=flow),h2.values(flow=flow),h1.variances(flow=flow),h2.variances(flow=flow)
 
 # Broadcast h1 to match the shape of h2
-def broadcastSystHist(h1, h2):
+def broadcastSystHist(h1, h2, flow=True):
     if h1.ndim > h2.ndim or h1.shape == h2.shape:
         return h1
     
     # Transpose because we keep syst axis last, but numpy broadcasts from the front
-    new_vals = np.broadcast_to(h1.view(flow=True).T, h2.view(flow=True).T.shape).T
+    new_vals = np.broadcast_to(h1.view(flow=flow).T, h2.view(flow=flow).T.shape).T
 
     return hist.Hist(*h2.axes, data=new_vals, storage=h1.storage_type())
 
 # returns h1/h2
-def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, cutoff_val=1., createNew=True):
+def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, cutoff_val=1., flow=True, createNew=True):
     if allowBroadcast:
-        h1 = broadcastSystHist(h1, h2)
-        h2 = broadcastSystHist(h2, h1)
+        h1 = broadcastSystHist(h1, h2, flow)
+        h2 = broadcastSystHist(h2, h1, flow)
 
     storage = h1.storage_type() if h1.storage_type == h2.storage_type else hist.storage.Double()
     outh = hist.Hist(*h1.axes, storage=storage) if createNew else h1
 
-    h1vals,h2vals,h1vars,h2vars = valsAndVariances(h1, h2)
+    h1vals,h2vals,h1vars,h2vars = valsAndVariances(h1, h2, flow=flow)
 
     # Careful not to overwrite the values of h1
-    out = outh.values(flow=True) if createNew else np.full(outh.values(flow=True).shape, cutoff_val)
+    out = outh.values(flow=flow) if createNew else np.full(outh.values(flow=flow).shape, cutoff_val)
 
     # Apply cutoff to both numerator and denominator
     cutoff_criteria = np.abs(h2vals) > cutoff
@@ -51,9 +51,9 @@ def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, cutoff_
             relsum = np.multiply(*relvars)
             var = np.multiply(relsum, val2, out=val2)
 
-        outh.view(flow=True)[...] = np.stack((val, var), axis=-1)
+        outh.view(flow=flow)[...] = np.stack((val, var), axis=-1)
     else:
-        outh.values(flow=True)[...] = val
+        outh.values(flow=flow)[...] = val
 
     return outh
 

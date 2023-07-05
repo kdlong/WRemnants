@@ -58,10 +58,10 @@ def main(args,xnorm=False):
     datagroups = make_datagroups_2016(args.inputFile, excludeGroups=excludeGroup, filterGroups=filterGroup, applySelection= not xnorm)
 
     if args.xlim:
-        if len(args.fitvar.split("-")) > 1:
-            raise ValueError("Restricting the x axis not supported for 2D hist")
+        xvar = args.fitvar.split("-")[0]
+        logger.info(f"Restricting the xaxis ({xvar}) to range{args.xlim}")
         s = hist.tag.Slicer()
-        datagroups.setGlobalAction(lambda h: h[{args.fitvar : s[complex(0, args.xlim[0]):complex(0, args.xlim[1])]}])
+        datagroups.setGlobalAction(lambda h: h[{xvar : s[complex(0, args.xlim[0]):complex(0, args.xlim[1])]}])
 
     wmass = datagroups.wmass
     wlike = datagroups.wlike

@@ -83,7 +83,7 @@ def write_analysis_output(results, outfile, args, update_name=True):
     results.update({"meta_info" : metaInfoDict(args=args)})
 
     to_append = []
-    if args.theoryCorr and not args.theoryCorrAltOnly:
+    if filter(lambda x: x.lower() != "none", args.theoryCorr) and not args.theoryCorrAltOnly:
         to_append.append(args.theoryCorr[0]+"Corr")
     if hasattr(args, "uncertainty_hist") and args.uncertainty_hist != "nominal":
         to_append.append(args.uncertainty_hist)

@@ -276,7 +276,7 @@ def makePlotWithRatioToRef(
     if len(hists) != len(labels) or len(hists) != len(colors):
         raise ValueError(f"Number of hists ({len(hists)}), colors ({len(colors)}), and labels ({len(labels)}) must agree!")
     # nominal is always at first, data is always at last, if included
-    ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001) for h in hists[not baseline:]]
+    ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001, flow=False) for h in hists[not baseline:]]
     fig, ax1, ax2 = figureWithRatio(
         hists[0], xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, 
         grid_on_ratio_plot = grid, plot_title = plot_title, title_padding=title_padding,
@@ -300,7 +300,7 @@ def makePlotWithRatioToRef(
     )
 
     if len(hists) > 1:
-        ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001) for h in hists[not baseline:]]
+        ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001, flow=False) for h in hists[not baseline:]]
         if fill_between:
             for up,down,color in zip(hists[1::2], hists[2::2], colors[1::2]):
                 upr = hh.divideHists(up, hists[0], 1e-6)

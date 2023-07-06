@@ -32,7 +32,7 @@ def add_modeling_uncertainty(card_tool, minnlo_scale, signal_samples, background
 
     if resumType != "none":
         add_common_np_uncertainties(card_tool, signal_samples+background_samples, to_fakes)
-        delta_omega = True
+        delta_omega = False
         if delta_omega and not wmass:
             add_Omega_np_uncertainties(card_tool, signal_samples, to_fakes, name_append=scale_name)
         else:
@@ -295,13 +295,28 @@ def add_common_np_uncertainties(card_tool, samples, to_fakes):
         nuisance_name = f"scetlibNP{np_nuisance}"
         card_tool.addSystematic(name=theory_hist,
             processes=samples,
-            group="resumNonpert",
-            systAxes=["vars"],
             passToFakes=to_fakes,
+            systAxes=["vars"],
             action=lambda h,np=np_nuisance,nr=nurange: h[{"vars" : [f"{np}{r}" for r in nr]}],
             outNames=[f"{nuisance_name}Down", f"{nuisance_name}Up"],
+            #systAxes=["downUpVar"],
+            #actionMap={s : lambda h,np=np_nuisance,nr=nurange: hh.syst_min_and_max_env_hist(h, obs, "vars",
+            #    [f"{np}{r}" for r in nr]) for s in expanded_samples},
+            #baseName=nuisance_name,
+            group="resumNonpert",
             rename=nuisance_name,
         )
+            #card_tool.addSystematic(name=theory_hist,
+            #    processes=samples,
+            #    passToFakes=to_fakes,
+            #    systAxes=[],
+            #    action=lambda h: h[{"vars" : "c_nu0.25"}],
+            #    mirror=True,
+            #    doActionBeforeMirror=True,
+            #    outNames=[f"{nuisance_name}Down", f"{nuisance_name}Up"],
+            #    group="resumNonpert",
+            #    rename=nuisance_name,
+            #)
 
 def add_pdf_uncertainty(card_tool, samples, to_fakes, action=None, from_corr=False, scale=1):
     pdf = input_tools.args_from_metadata(card_tool, "pdfs")[0]

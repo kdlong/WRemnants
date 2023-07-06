@@ -21,7 +21,7 @@ def make_parser(parser=None):
     parser.add_argument("--noEfficiencyUnc", action='store_true', help="Skip efficiency uncertainty (useful for tests, because it's slow). Equivalent to --excludeNuisances '.*effSystTnP|.*effStatTnP' ")
     parser.add_argument("--ewUnc", action='store_true', help="Include EW uncertainty")
     parser.add_argument("--pseudoData", type=str, help="Hist to use as pseudodata")
-    parser.add_argument("--pseudoDataIdx", type=int, default=0, help="Variation index to use as pseudodata")
+    parser.add_argument("--pseudoDataIdx", type=str, default="0", help="Variation index to use as pseudodata")
     parser.add_argument("--pseudoDataFile", type=str, help="Input file for pseudodata (if it should be read from a different file)", default=None)
     parser.add_argument("--pseudoDataProcsRegexp", type=str, default=".*", help="Regular expression for processes taken from pseudodata file (all other processes are automatically got from the nominal file). Data is excluded automatically as usual")
     parser.add_argument("-x",  "--excludeNuisances", type=str, default="", help="Regular expression to exclude some systematics from the datacard")
@@ -170,19 +170,19 @@ def main(args,xnorm=False):
     logger.info(f"Signal samples: {signal_samples}")
 
     constrainedZ = constrainMass and not wmass
-    massSkip = [(f"^massShift{i}MeV.*",) for i in range(0, 110 if constrainedZ else 100, 10)]
+    label = 'W' if wmass else 'Z'
+    massSkip = [(f"^massShift{label}{i}MeV.*",) for i in range(0, 110 if constrainedZ else 100, 10)]
     if not (constrainMass or wmass):
-        massSkip.append(("^massShift2p1MeV.*",))
+        massSkip.append(("^massShiftZ2p1MeV.*",))
 
-    cardTool.addSystematic("massWeight", 
+    cardTool.addSystematic(f"massWeight{label}", 
                             processes=signal_samples_inctau,
-                            group=f"massShift{'W' if wmass else 'Z'}",
+                            group=f"massShift{label}",
                             skipEntries=massSkip,
                             mirror=False,
-                            systNamePrepend="W" if wmass else "Z",
                             #TODO: Name this
                             noConstraint=not constrainMass,
-                            systAxes=["massShift"],
+                            systAxes=[f"massShift"],
                             passToFakes=passSystToFakes,
     )
     

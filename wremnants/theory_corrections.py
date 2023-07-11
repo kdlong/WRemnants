@@ -33,6 +33,7 @@ def load_corr_helpers(procs, generators):
             # Hack for now
             corr_hist_name = get_corr_name(generator)
             corr_helpers[proc][generator] = helper_func(fname, proc[0], corr_hist_name)
+            print("Adding generator", generator, "for proc", proc)
     for generator in generators:
         if not any([generator in corr_helpers[proc] for proc in procs]):
             raise ValueError(f"Did not find correction for generator {generator} for any processes!")
@@ -101,7 +102,7 @@ def rebin_corr_hists(hists, ndim=-1, use_predefined_bins=False):
     for i in range(ndims):
         # This is a workaround for now for the fact that MiNNLO has mass binning up to
         # Inf whereas SCETlib has 13 TeV
-        if all([h.axes[i].size == 1 for h in hists]):
+        if all([h.axes[i].size == 1 or type(h.axes[i]) == hist.axis.StrCategory for h in hists]):
             continue
         hists = hh.rebinHistsToCommon(hists, i)
     return hists

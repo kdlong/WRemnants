@@ -10,7 +10,8 @@ def add_modeling_uncertainty(card_tool, minnlo_scale, signal_samples, background
     resum_samples = signal_samples+background_samples if wmass and resumType == "tnp" else signal_samples
     scale_label = scale_name if resumType != "tnp" else ""
 
-    do_resum = resumType and resumType != "none"
+    do_resum = resumType and resumType not in ["none", "npOnly"]
+    resum_np = resumType and resumType != ["none"]
     if do_resum:
         add_resum_uncertainty(card_tool, resum_samples, to_fakes, 
                                             uncType=resumType, scale=scaleTNP, name_append=scale_label)
@@ -24,13 +25,13 @@ def add_modeling_uncertainty(card_tool, minnlo_scale, signal_samples, background
     if wmass and background_samples:
         add_minnlo_scale_uncertainty(card_tool, minnlo_scale, background_samples, to_fakes, 
                                             resum=do_resum, name_append="Z")
-        add_resum_transition_uncertainty(card_tool, background_samples, to_fakes, name_append="Z")
+        if do_resum:
+            add_resum_transition_uncertainty(card_tool, background_samples, to_fakes, name_append="Z")
 
-        if resumType != "tnp":
             add_resum_uncertainty(card_tool, background_samples, to_fakes, 
                                             uncType=resumType, scale=scaleTNP, name_append="Z")
 
-    if resumType != "none":
+    if resum_np:
         add_common_np_uncertainties(card_tool, signal_samples+background_samples, to_fakes)
         delta_omega = False
         if delta_omega and not wmass:
@@ -213,8 +214,8 @@ def add_resum_transition_uncertainty(card_tool, samples, to_fakes, name_append="
 def add_Omega_np_uncertainties(card_tool, samples, to_fakes, name_append):
     theory_unc = input_tools.args_from_metadata(card_tool, "theoryCorr")
     # TODO: For now these are separate hists, to rerun everything together in the future
-    hist = "scetlib_dyturboNP" 
-    if "scetlib_dyturboNP" not in theory_unc:
+    hist = "scetlib_dyturboNPgamma" 
+    if hist not in theory_unc:
         raise ValueError("Did not find new scetlib non-perturbative correction")
     hist += "Corr"
 
@@ -224,7 +225,7 @@ def add_Omega_np_uncertainties(card_tool, samples, to_fakes, name_append):
         group="resumNonpert",
         systAxes=["vars",],
         passToFakes=to_fakes,
-        action=lambda h: h[{"vars" : ["Omega0.", "Omega0.7"]}],
+        action=lambda h: h[{"vars" : ["Omega0.", "Omega0.8"]}],
         outNames=[omega_name+"Down", omega_name+"Up"],
         rename=omega_name,
     )
@@ -258,9 +259,9 @@ def add_decorrelated_np_uncertainties(card_tool, samples, to_fakes, name_append,
             passToFakes=to_fakes,
             systAxes=["absYVgenNP", "chargeVgenNP", "vars"],
             # Careful here... it's nasty, but the order of the replace matters
-            systNameReplace=[("0.71", "Up"), ("0.", "Down"), ],
-            action=lambda h: syst_tools.hist_to_variations(h[{"vars" : ["pdf0", "Omega0.", "Omega0.71"]}]),
-            skipEntries=[{"vars" : "pdf0"}],
+            systNameReplace=[("0.8", "Up"), ("0.", "Down"), ],
+            action=lambda h: syst_tools.hist_to_variations(h[{"vars" : ["central" if "central" in h.axes["vars"] else "pdf0", "Omega0.", "Omega0.8"]}]),
+            skipEntries=[{"vars" : "pdf0", "vars" : "central"}],
 
             #systAxes=["absYVgenNP", "chargeVgenNP", "downUpVar"],
             #actionMap={s : lambda h,np=np_nuisance: hh.syst_min_and_max_env_hist(syst_tools.hist_to_variations(h), obs, "vars",
@@ -273,7 +274,7 @@ def theory_unc_hist(card_tool, unc=""):
     theory_unc = input_tools.args_from_metadata(card_tool, "theoryCorr")
     if not theory_unc:
         logger.error("Can not add resummation uncertainties. No theory correction was applied!")
-    if theory_unc[0] != "scetlib_dyturbo":
+    if "scetlib_dyturbo" not in theory_unc[0]:
         raise ValueError(f"The theory uncertainty hist {theory_unc} doesn't have the resummation uncertainty implemented")
 
     return theory_unc[0]+("Corr" if not unc else unc)
@@ -288,16 +289,23 @@ def add_common_np_uncertainties(card_tool, samples, to_fakes):
     if not obs:
         raise ValueError("Failed to find the observable names for the resummation uncertainties")
 
-    theory_hist = theory_unc_hist(card_tool)
+    #theory_hist = theory_unc_hist(card_tool)
+    theory_unc = input_tools.args_from_metadata(card_tool, "theoryCorr")
+    # TODO: For now these are separate hists, to rerun everything together in the future
+    hist = "scetlib_dyturboNPgamma" 
+    if hist not in theory_unc:
+        raise ValueError("Did not find new scetlib non-perturbative correction")
+    hist += "Corr"
 
-    ranges = {"omega_nu" : [0.01, 0.4], "c_nu" : [-0.25, 0.25]}
-    for np_nuisance, nurange in ranges.items():
+    #ranges = {"omega_nu" : [0.01, 0.4], "c_nu" : [-0.25, 0.25]}
+    ranges = {"gamma" : ["c_nu-0.1-omega_nu0.5", "omega_nu0.5", ]}
+    for np_nuisance, npvars in ranges.items():
         nuisance_name = f"scetlibNP{np_nuisance}"
-        card_tool.addSystematic(name=theory_hist,
+        card_tool.addSystematic(name=hist,
             processes=samples,
             passToFakes=to_fakes,
             systAxes=["vars"],
-            action=lambda h,np=np_nuisance,nr=nurange: h[{"vars" : [f"{np}{r}" for r in nr]}],
+            action=lambda h,np=npvars: h[{"vars" : npvars}],
             outNames=[f"{nuisance_name}Down", f"{nuisance_name}Up"],
             #systAxes=["downUpVar"],
             #actionMap={s : lambda h,np=np_nuisance,nr=nurange: hh.syst_min_and_max_env_hist(h, obs, "vars",

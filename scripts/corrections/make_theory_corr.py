@@ -18,6 +18,7 @@ parser.add_argument("-g", "--generator", type=str, choices=["dyturbo", "scetlib"
 parser.add_argument("--outpath", type=str, default=f"{common.data_dir}/TheoryCorrections", help="Output path")
 parser.add_argument("-p", "--postfix", type=str, help="Postfix for output file name", default=None)
 parser.add_argument("--proc", type=str, required=True, choices=["z", "w", ], help="Process")
+parser.add_argument("--minnloh", default="nominal_gen", type=str, help="Reference hist in MiNNLO sample")
 parser.add_argument("--axes", nargs="*", type=str, default=None, help="Use only specified axes in hist")
 parser.add_argument("--debug", action='store_true', help="Print debug output")
 parser.add_argument("--noColorLogger", action="store_true", default=False, help="Do not use logging with colors")
@@ -83,7 +84,7 @@ elif args.proc == "w":
     filesByProc = { "WplusmunuPostVFP" : wpfiles,
         "WminusmunuPostVFP" : wmfiles}
 
-minnloh = input_tools.read_all_and_scale(args.minnlo_file, list(filesByProc.keys()), ["nominal_gen"])[0]
+minnloh = input_tools.read_all_and_scale(args.minnlo_file, list(filesByProc.keys()), [args.minnloh])[0]
 
 if "y" in minnloh.axes.name:
     minnloh = hh.makeAbsHist(minnloh, "y")
@@ -94,7 +95,7 @@ if add_taus:
     logger.info("Combining muon and tau decay samples for increased stats")
     from wremnants.datasets.datasetDict_v9 import Z_TAU_TO_LEP_RATIO,BR_TAUToMU
     taus = ["WplustaunuPostVFP", "WminustaunuPostVFP"] if args.proc == "w" else ["ZtautauPostVFP"]
-    taush = input_tools.read_all_and_scale(args.minnlo_file, taus, ["nominal_gen"])[0]
+    taush = input_tools.read_all_and_scale(args.minnlo_file, taus, [args.minnloh])[0]
     if "y" in taush.axes.name:
         taush = hh.makeAbsHist(taush, "y")
     # Rescale taus to mu to effectively have more stats
@@ -109,6 +110,7 @@ if numh.ndim-1 < minnloh.ndim:
         "absy" : "absY",
         "massVgen" : "Q",
         "chargeVgen" : "charge",
+        "pdfVar" : "vars",
     }
     axes = []
     # NOTE: This leaves out the flow, but there shouldn't be any for the theory pred anyway
@@ -124,9 +126,10 @@ if numh.ndim-1 < minnloh.ndim:
             axes.append(hist.axis.Regular(1, minnlo_ax.edges[0], minnlo_ax.edges[-1], 
                 flow=True, name=ax))
             data = np.expand_dims(data, i)
-    if numh.axes.name[-1] == "vars":
+    if axes[-1].name != "vars" and numh.axes.name[-1] == "vars":
         axes.append(numh.axes["vars"])
 
+    print([a.name for a in axes])
     numh = hist.Hist(*axes, storage=numh._storage_type(), data=data)
 
 
@@ -165,7 +168,7 @@ for ax in corrh.axes:
     logger.info(f"Axis {ax.name}: {ax.edges}")
 
 num_yield = numh[{'vars' : 0 }].sum()
-denom_yield = minnloh.sum()
+denom_yield = minnloh.sum() if minnloh.axes.name[-1] == "chargeVgen" else minnloh[...,0].sum()
 to_val = lambda x: x.value if hasattr(x, "value") else x
 norm_ratio = to_val(num_yield)/to_val(denom_yield)
 

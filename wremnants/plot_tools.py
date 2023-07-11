@@ -174,9 +174,11 @@ def makeStackPlotWithRatio(
         zorder=1,
     )
     
+    mc_sum = hh.sumHists(stack)
+    ratio_ref = data_hist if ratio_to_data else mc_sum
     if "Data" in histInfo and ratio_to_data:
         hep.histplot(
-            hh.divideHists(sum(stack), data_hist, cutoff=0.01),
+            hh.divideHists(mc_sum, data_hist, cutoff=0.01),
             histtype="step",
             color=histInfo[stackedProcs[-1]].color,
             label=histInfo[stackedProcs[-1]].label,
@@ -197,10 +199,9 @@ def makeStackPlotWithRatio(
         linestyles = np.array(linestyles, dtype=object)
         linestyles[data_idx+1:data_idx+1+len(unstacked_linestyles)] = unstacked_linestyles
 
-        ratio_ref = data_hist if ratio_to_data else sum(stack) 
         if baseline:
             hep.histplot(
-                hh.divideHists(ratio_ref, ratio_ref, cutoff=1e-8, rel_unc=True),
+                hh.divideHists(ratio_ref, ratio_ref, cutoff=1e-8, rel_unc=True, createNew=True),
                 histtype="step",
                 color="grey",
                 alpha=0.5,
@@ -210,8 +211,6 @@ def makeStackPlotWithRatio(
             )
 
         for proc,style in zip(unstacked, linestyles):
-            if ratio_to_data and proc == "Data":
-                continue
             unstack = histInfo[proc].hists[histName]
             if not fitresult or proc not in to_read:
                 unstack = action(unstack)[select]
@@ -227,6 +226,9 @@ def makeStackPlotWithRatio(
                 linestyle=style,
                 binwnorm=binwnorm,
             )
+
+            if ratio_to_data and proc == "Data":
+                continue
             hep.histplot(
                 hh.divideHists(unstack, ratio_ref, cutoff=0.01, rel_unc=True),
                 histtype="errorbar" if style == "None" else "step",
@@ -244,10 +246,10 @@ def makeStackPlotWithRatio(
                 skip_fill = len(fill_procs) % 2
             logger.debug(f"Skip filling first {skip_fill}")
             for up,down in zip(fill_procs[skip_fill::2], fill_procs[skip_fill+1::2]):
-                unstack_up = histInfo[up].hists[histName]
-                unstack_down = histInfo[down].hists[histName]
-                unstack_upr = hh.divideHists(unstack_up, ratio_ref, 1e-6)
-                unstack_downr = hh.divideHists(unstack_down, ratio_ref, 1e-6)
+                unstack_up = action(histInfo[up].hists[histName])
+                unstack_down = action(histInfo[down].hists[histName])
+                unstack_upr = hh.divideHists(unstack_up, ratio_ref, 1e-6, flow=False)
+                unstack_downr = hh.divideHists(unstack_down, ratio_ref, 1e-6, flow=False)
                 ax2.fill_between(unstack_upr.axes[0].edges[:-1], 
                         unstack_upr.values(), unstack_downr.values(),
                         # FIXME: Not sure if this is needed, currently not working correctly

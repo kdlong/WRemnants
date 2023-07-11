@@ -59,14 +59,16 @@ def main(args,xnorm=False):
     
     datagroups = make_datagroups_2016(args.inputFile, excludeGroups=excludeGroup, filterGroups=filterGroup, applySelection= not xnorm)
 
+    print("------>", args.axlim)
     if args.axlim or args.rebin:
+        print("YES HERE WE ARE!")
         if len(args.axlim) % 2 or len(args.axlim)/2 > len(args.fitvar) or len(args.rebin) > len(args.fitvar):
             raise ValueError("Inconsistent rebin or axlim arguments. axlim must be at most two entries per axis, and rebin at most one")
 
         sel = {}
         for var,low,high,rebin in itertools.zip_longest(args.fitvar, args.axlim[::2], args.axlim[1::2], args.rebin):
             s = hist.tag.Slicer()
-            if low and high:
+            if low is not None and high is not None:
                 logger.info(f"Restricting the axis '{var}' to range [{low}, {high}]")
                 sel[var] = s[complex(0, low):complex(0, high):hist.rebin(rebin) if rebin else None]
             elif rebin:
@@ -187,7 +189,7 @@ def main(args,xnorm=False):
     label = 'W' if wmass else 'Z'
     massSkip = [(f"^massShift{label}{i}MeV.*",) for i in range(0, 110 if constrainedZ else 100, 10)]
     if not (constrainMass or wmass):
-        massSkip.append(("^massShiftZ2p1MeV.*",))
+        massSkip.append(("^massShift.*2p1MeV.*",))
 
     cardTool.addSystematic(f"massWeight{label}", 
                             processes=signal_samples_inctau,

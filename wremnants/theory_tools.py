@@ -284,16 +284,18 @@ def define_nominal_weight(df):
     return df.Define(f"nominal_weight", build_weight_expr(df))
 
 def define_theory_corr(df, dataset_name, helpers, generators, modify_central_weight):
+    print("--------> defining")
     df = df.Define(f"nominal_weight_uncorr", build_weight_expr(df, exclude_weights=["theory_corr_weight"]))
 
     dataset_helpers = helpers.get(dataset_name, [])
+    print(dataset_helpers)
 
     if not modify_central_weight or not generators or generators[0] not in dataset_helpers:
         df = df.DefinePerSample("theory_corr_weight", "1.0")
-        return df
 
     for i, generator in enumerate(generators):
         if generator not in dataset_helpers:
+            print("Skipping", generator)
             continue
 
         helper = dataset_helpers[generator]
@@ -310,6 +312,7 @@ def define_theory_corr(df, dataset_name, helpers, generators, modify_central_wei
                 df = df.Alias("ew_corr_weight", "nominal_weight_uncorr")
             df = df.Define(f"{generator}Weight_tensor", helper, ["ewMll", "ewLogDeltaM", f"{generator}Dummy", "chargeVgen", "ew_corr_weight"]) # multiplying with nominal QCD weight
         else:
+            print(f"Adding {generator}Weight_tensor for sample {dataset_name}")
             df = df.Define(f"{generator}Weight_tensor", helper, ["massVgen", "absYVgen", "ptVgen", "chargeVgen", "nominal_weight_uncorr"])
 
         if i == 0 and modify_central_weight:
@@ -336,7 +339,7 @@ def make_theory_corr_hists(df, name, axes, cols, helpers, generators, modify_cen
         var_axis = helpers[generator].tensor_axes[-1]
 
         # special treatment for Omega since it needs to be decorrelated in charge and rapidity
-        if generator == "scetlib_dyturbo" and any(var_label.startswith("Omega") for var_label in var_axis):
+        if generator in ["scetlib_dyturbo", "scetlib_dyturboNPgamma"] and any(var_label.startswith("Omega") for var_label in var_axis):
             omegaidxs = [var_axis.index(var_label) for var_label in var_axis if var_label.startswith("Omega")]
 
             # include nominal as well

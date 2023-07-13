@@ -289,18 +289,15 @@ def define_nominal_weight(df):
     return df.Define(f"nominal_weight", build_weight_expr(df))
 
 def define_theory_corr(df, dataset_name, helpers, generators, modify_central_weight):
-    print("--------> defining")
     df = df.Define(f"nominal_weight_uncorr", build_weight_expr(df, exclude_weights=["theory_corr_weight"]))
 
     dataset_helpers = helpers.get(dataset_name, [])
-    print(dataset_helpers)
 
     if not modify_central_weight or not generators or generators[0] not in dataset_helpers:
         df = df.DefinePerSample("theory_corr_weight", "1.0")
 
     for i, generator in enumerate(generators):
         if generator not in dataset_helpers:
-            print("Skipping", generator)
             continue
         
         logger.debug(f"Now at generator {i}: {generator}")
@@ -319,7 +316,6 @@ def define_theory_corr(df, dataset_name, helpers, generators, modify_central_wei
                 df = df.Alias("ew_corr_weight", "nominal_weight_uncorr")
             df = df.Define(f"{generator}Weight_tensor", helper, ["ewMll", "ewLogDeltaM", f"{generator}Dummy", "chargeVgen", "ew_corr_weight"]) # multiplying with nominal QCD weight
         else:
-            print(f"Adding {generator}Weight_tensor for sample {dataset_name}")
             df = df.Define(f"{generator}Weight_tensor", helper, ["massVgen", "absYVgen", "ptVgen", "chargeVgen", "nominal_weight_uncorr"])
 
         if i == 0 and modify_central_weight:

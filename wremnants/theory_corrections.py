@@ -33,7 +33,6 @@ def load_corr_helpers(procs, generators):
             # Hack for now
             corr_hist_name = get_corr_name(generator)
             corr_helpers[proc][generator] = helper_func(fname, proc[0], corr_hist_name)
-            print("Adding generator", generator, "for proc", proc)
     for generator in generators:
         if not any([generator in corr_helpers[proc] for proc in procs]):
             raise ValueError(f"Did not find correction for generator {generator} for any processes!")

@@ -56,7 +56,6 @@ def make_parser(parser=None):
     parser.add_argument("--scaleMuonCorr", type=float, default=1.0, help="Scale up/down dummy muon scale uncertainty by this factor")
     parser.add_argument("--correlatedNonClosureNuisances", action='store_true', help="get systematics from histograms for the Z non-closure nuisances without decorrelation in eta and pt")
     parser.add_argument("--sepImpactForNC", action="store_true", help="use a dedicated impact gropu for non closure nuisances, instead of putting them in muonScale")
-    parser.add_argument("--sepImpactForReso", action="store_true", help="use a dedicated impact group for resolution correction nuisances")
     parser.add_argument("--noEfficiencyUnc", action='store_true', help="Skip efficiency uncertainty (useful for tests, because it's slow). Equivalent to --excludeNuisances '.*effSystTnP|.*effStatTnP' ")
     parser.add_argument("--effStatLumiScale", type=float, default=None, help="Rescale equivalent luminosity for efficiency stat uncertainty by this value (e.g. 10 means ten times more data from tag and probe)")
     parser.add_argument("--binnedScaleFactors", action='store_true', help="Use binned scale factors (different helpers and nuisances)")
@@ -608,7 +607,7 @@ def setup(args, inputFile, fitvar, xnorm=False):
         cardTool.addSystematic("muonResolutionSyst_responseWeights", 
             mirror = True,
             processes=['single_v_samples'],
-            group="resolutionCrctn" if args.sepImpactForNC else "muonScale",
+            group="resolutionCorr",
             baseName="Resolution_correction_",
             systAxes=["smearing_variation"],
             passToFakes=passSystToFakes

@@ -69,6 +69,9 @@ args = parser.parse_args()
 thisAnalysis = ROOT.wrem.AnalysisType.Wmass
 
 era = args.era
+
+print(args.pdfs)
+print("Extended", "msht20an3lo" not in args.pdfs)
 datasets = getDatasets(maxFiles=args.maxFiles,
                        filt=args.filterProcs,
                        excl=args.excludeProcs, 

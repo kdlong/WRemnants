@@ -21,8 +21,10 @@ class TheoryHelper(object):
         corr_hists = input_tools.args_from_metadata(self.card_tool, "theoryCorr")
         self.corr_hist_name = (corr_hists[0]+"Corr") if corr_hists else None
         # Workaround for now, in case PDF vars and scale vars are split
+        print("Corr hist will be", self.corr_hist_name)
         if "scetlib_dyturbo" in self.corr_hist_name and "scetlib_dyturbo" in corr_hists:
             self.corr_hist_name = "scetlib_dyturboCorr"
+        print("Corr hist will be", self.corr_hist_name)
         self.syst_ax = "vars"
         self.corr_hist = None
         self.resumUnc = None

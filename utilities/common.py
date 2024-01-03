@@ -6,6 +6,7 @@ import os
 from utilities import logging
 from enum import Enum
 import re
+import itertools
 
 base_dir = f"{pathlib.Path(__file__).parent}/../"
 wremnants_dir = f"{pathlib.Path(__file__).parent}/../wremnants"
@@ -181,7 +182,11 @@ def common_parser(for_reco_highPU=False):
     parser.add_argument("--skipHelicity", action='store_true', help="Skip the qcdScaleByHelicity histogram (it can be huge)")
     parser.add_argument("--eta", nargs=3, type=float, help="Eta binning as 'nbins min max' (only uniform for now)", default=[48,-2.4,2.4])
     parser.add_argument("--pt", nargs=3, type=float, help="Pt binning as 'nbins,min,max' (only uniform for now)", default=[30,26.,56.])
-    parser.add_argument("--noRecoil", action='store_true', help="Don't apply recoild correction")
+    parser.add_argument("--nominalAxes", type=str, nargs="+", default=["pt", "eta"], choices=_axis_defaults.keys(), help="Observables of nominal histograms")
+    parser.add_argument("--nominalAxLow", type=float, nargs="*", default=[], help="Lower bin edge of nominal axes (matching order of --nominalAxes)")
+    parser.add_argument("--nominalAxHigh", type=float, nargs="*", default=[], help="Lower bin edge of nominal axes (matching order of --nominalAxes)")
+    parser.add_argument("--nominalBins", type=float, nargs="*", default=[], help="Number of bins for nominal axes (matching order of --nominalAxes)")
+    parser.add_argument("--noRecoil", action='store_true', help="Don't apply recoil correction")
     parser.add_argument("--recoilHists", action='store_true', help="Save all recoil related histograms for calibration and validation")
     parser.add_argument("--recoilUnc", action='store_true', help="Run the recoil calibration with uncertainties (slower)")
     parser.add_argument("--highptscales", action='store_true', help="Apply highptscales option in MiNNLO for better description of data at high pT")
@@ -326,3 +331,53 @@ def list_to_string(list_str):
             "list_to_string(): cannot convert an input that is"
             " neither a single string or a list of strings"
         )
+
+_axis_defaults = {
+    "pt" : {
+        "branchName" : "goodMuons_pt0",
+        "default" : hist.axis.Regular(30, 26., 56., name="pt", flow=False),
+    },
+    "eta" : {
+        "branchName" : "goodMuons_eta0",
+        "default" : hist.axis.Regular(48, -2.4, 2.4, name="eta", flow=False),
+    },
+    "mt" : { "branchName" : "transverseMass",
+            # Should probably be variable
+            "default" : hist.axis.Regular(120, 0, 120, name="mt") 
+    },
+    "ptfake" : {
+        "branchName" : "goodMuons_pt0",
+        "default" : hist.axis.Regular(6, 26., 56., name="pt", flow=False),
+    },
+    "etafake" : {
+        "branchName" : "goodMuons_eta0",
+        "default" : hist.axis.Regular(24, -2.4, 2.4, name="eta", flow=False),
+    },
+}
+
+def get_nominal_axes_and_banches(axis_names, nbins, low_edges, high_edges):
+    logger = logging.child_logger(__name__)
+
+    axes = []
+    branches = []
+
+    if not all(x not in axes or x+"fake" not in axes for x in ["pt", "eta"]):
+        logger.warming("Missing pt or eta axis. Will not be able to compute fake estimate correctly!")
+
+    for ax,nbin,low,high in itertools.zip_longest(axis_names, nbins, low_edges, high_edges):
+        if not ax:
+            raise ValueError("Must specify names for all axes")
+
+        info = _axis_defaults[ax]
+        if nbin is None and low is None and high is None:
+            axes.append(info["default"])
+        else:
+            overflow = info["default"].traits.overflow
+            underflow = info["default"].traits.underflow
+            axes.append(hist.axis.Regular(nbin, low, high, name=ax, overflow=overflow, underflow=underflow))
+        branch = info["branchName"]
+        branches.append(branch)
+        ax = axes[-1]
+        logger.info(f"Axis {ax.name}: {ax.size} bins from {ax.edges[0]} to {ax.edges[-1]}; filled by branch {branch}")
+
+    return axes,branches

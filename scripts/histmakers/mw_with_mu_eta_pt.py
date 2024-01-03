@@ -80,31 +80,22 @@ datasets = getDatasets(maxFiles=args.maxFiles,
 # transverse boson mass cut
 mtw_min = args.mtCut
 
-# custom template binning
-template_neta = int(args.eta[0])
-template_mineta = args.eta[1]
-template_maxeta = args.eta[2]
-logger.info(f"Eta binning: {template_neta} bins from {template_mineta} to {template_maxeta}")
-template_npt = int(args.pt[0])
-template_minpt = args.pt[1]
-template_maxpt = args.pt[2]
-logger.info(f"Pt binning: {template_npt} bins from {template_minpt} to {template_maxpt}")
-
-# standard regular axes
-axis_eta = hist.axis.Regular(template_neta, template_mineta, template_maxeta, name = "eta", overflow=False, underflow=False)
-axis_pt = hist.axis.Regular(template_npt, template_minpt, template_maxpt, name = "pt", overflow=False, underflow=False)
+axes,branches = common.get_nominal_axes_and_banches(args.nominalAxes, args.nominalBins, args.nominalAxLow, args.nominalAxHigh)
 
 axis_charge = common.axis_charge
 axis_passIso = common.axis_passIso
 axis_passMT = common.axis_passMT
 axis_passTrigger = hist.axis.Boolean(name = "passTrigger")
 
-nominal_axes = [axis_eta, axis_pt, axis_charge, axis_passIso, axis_passMT]
+nominal_axes = [*axes, axis_charge, axis_passIso]
+nominal_cols = [*branches, "goodMuons_charge0", "passIso"]
 
-nominal_cols = ["goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT"]
+if "mt" not in args.nominalAxes:
+    nominal_axes.append(axis_passMT)
+    nominal_cols.append("passMT")
 
 axis_ut = hist.axis.Regular(40, -100, 100, overflow=True, underflow=True, name = "ut")
-axes_WeffMC = [axis_eta, axis_pt_eff, axis_ut, axis_charge, axis_passIso, axis_passMT, axis_passTrigger]
+axes_WeffMC = [common.axis_eta, axis_pt_eff, axis_ut, axis_charge, axis_passIso, axis_passMT, axis_passTrigger]
 # sum those groups up in post processing
 groups_to_aggregate = args.aggregateGroups
 
@@ -131,7 +122,7 @@ elif args.theoryAgnostic:
 axis_mt_fakes = hist.axis.Regular(120, 0., 120., name = "mt", underflow=False, overflow=True)
 axis_dphi_fakes = hist.axis.Regular(8, 0., np.pi, name = "DphiMuonMet", underflow=False, overflow=False)
 axis_hasjet_fakes = hist.axis.Boolean(name = "hasJets") # only need case with 0 jets or > 0 for now
-mTStudyForFakes_axes = [axis_eta, axis_pt, axis_charge, axis_mt_fakes, axis_passIso, axis_hasjet_fakes, axis_dphi_fakes]
+mTStudyForFakes_axes = [common.axis_eta, common.axis_pt, axis_charge, axis_mt_fakes, axis_passIso, axis_hasjet_fakes, axis_dphi_fakes]
 
 # for mt, met, ptW plots, to compute the fakes properly (but FR pretty stable vs pt and also vs eta)
 # may not exactly reproduce the same pt range as analysis, though
@@ -151,10 +142,11 @@ if args.noScaleFactors:
 elif args.binnedScaleFactors:
     logger.info("Using binned scale factors and uncertainties")
     # add usePseudoSmoothing=True for tests with Asimov
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = data_dir + "/muonSF/allSmooth_GtoH3D.root", era = era, max_pt = axis_pt.edges[-1], usePseudoSmoothing=True)
+    # TODO: This hsouldn't be taken from the common axis, I guess
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = data_dir + "/muonSF/allSmooth_GtoH3D.root", era = era, max_pt = common.axis_pt.edges[-1], usePseudoSmoothing=True)
 else:
     logger.info("Using smoothed scale factors and uncertainties")
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = axis_pt.edges[-1], isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = common.axis_pt.edges[-1], isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
 
 logger.info(f"SF file: {args.sfFile}")
 

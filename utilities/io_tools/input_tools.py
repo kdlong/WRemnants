@@ -352,6 +352,7 @@ def read_matched_scetlib_dyturbo_hist(scetlib_resum, scetlib_fo_sing, dyturbo_fo
 
     htotal = hh.addHists(hresum, hnonsing, by_ax_name=False)
 
+<<<<<<< HEAD
     # remove duplicates and extend variations with some envelopes and special kinematic slices
 
     vars_dict = {var : None for var in htotal.axes["vars"]}
@@ -507,8 +508,6 @@ def read_matched_scetlib_dyturbo_hist(scetlib_resum, scetlib_fo_sing, dyturbo_fo
     htotal = htotal_tmp
 
     return htotal
-
-
 
 def read_json(fIn):
 

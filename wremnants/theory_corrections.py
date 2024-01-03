@@ -21,12 +21,12 @@ def valid_theory_corrections():
     matches = [re.match("(^.*)Corr[W|Z]\.pkl\.lz4", os.path.basename(c)) for c in corr_files]
     return [m[1] for m in matches if m]+["none"]
 
-def load_corr_helpers(procs, generators, make_tensor=True):
+def load_corr_helpers(procs, generators, make_tensor=True, base_dir=f"{common.data_dir}/TheoryCorrections/"):
     corr_helpers = {}
     for proc in procs:
         corr_helpers[proc] = {}
         for generator in generators:
-            fname = f"{common.data_dir}/TheoryCorrections/{generator}Corr{proc[0]}.pkl.lz4"
+            fname = f"{base_dir}/{generator}Corr{proc[0]}.pkl.lz4"
             if not os.path.isfile(fname):
                 logger.warning(f"Did not find correction file for process {proc}, generator {generator}. No correction will be applied for this process!")
                 continue
@@ -49,11 +49,11 @@ def make_corr_helper_fromnp(filename=f"{common.data_dir}/N3LLCorrections/inclusi
         corrf_Wp = np.load(filename.format(process="Wp"), allow_pickle=True)
         corrf_Wm = np.load(filename.format(process="Wm"), allow_pickle=True)
         bins = corrf_Wp["bins"]
-        axis_charge = hist.axis.Regular(2, -2., 2., underflow=False, overflow=False, name = "charge")
+        axis_charge = common.axis_chargeWgen
     else:
         corrf = np.load(filename.format(process="Z"), allow_pickle=True)
         bins = corrf["bins"]
-        axis_charge = hist.axis.Regular(1, -1., 1., underflow=False, overflow=False, name = "charge")
+        axis_charge =  common.axis_chargeZgen
 
     axis_syst = hist.axis.Regular(len(bins[0]) - 1, bins[0][0], bins[0][-1], 
                     name="systIdx", overflow=False, underflow=False)

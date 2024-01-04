@@ -54,15 +54,8 @@ if args.theoryAgnostic or args.unfolding:
             logger.warning("Running theory agnostic with only nominal and mass weight histograms for now.")
             parser = common.set_parser_default(parser, "onlyMainHistograms", True)
     if args.unfolding:
+        #TODO: Fix
         parser = common.set_parser_default(parser, "pt", [32,26.,58.])
-
-# axes for W MC efficiencies with uT dependence for iso and trigger
-axis_pt_eff_list = [24.,26.,28.,30.,32.,34.,36.,38.,40., 42., 44., 47., 50., 55., 60., 65.]
-axis_pt_eff = hist.axis.Variable(axis_pt_eff_list, name = "pt", overflow=not args.excludeFlow, underflow=not args.excludeFlow)
-if args.makeMCefficiency:
-    # override the pt cuts (the binning is irrelevant since a different pt axis is used)
-    nbinsPtEff = axis_pt_eff_list[-1] - axis_pt_eff_list[0]
-    parser = common.set_parser_default(parser, "pt", [nbinsPtEff, axis_pt_eff_list[0], axis_pt_eff_list[-1]])
 
 args = parser.parse_args()
     
@@ -80,22 +73,17 @@ datasets = getDatasets(maxFiles=args.maxFiles,
 # transverse boson mass cut
 mtw_min = args.mtCut
 
-axes,branches = common.get_nominal_axes_and_banches(args.nominalAxes, args.nominalBins, args.nominalAxLow, args.nominalAxHigh)
-
-axis_charge = common.axis_charge
-axis_passIso = common.axis_passIso
-axis_passMT = common.axis_passMT
 axis_passTrigger = hist.axis.Boolean(name = "passTrigger")
 
-nominal_axes = [*axes, axis_charge, axis_passIso]
+axes,branches = common.get_nominal_axes_and_banches(args.nominalAxes, args.nominalBins, args.nominalAxLow, args.nominalAxHigh)
+
+nominal_axes = [*axes, common.axis_charge, common.axis_passIso]
 nominal_cols = [*branches, "goodMuons_charge0", "passIso"]
 
 if "mt" not in args.nominalAxes:
-    nominal_axes.append(axis_passMT)
+    nominal_axes.append(common.axis_passMT)
     nominal_cols.append("passMT")
 
-axis_ut = hist.axis.Regular(40, -100, 100, overflow=True, underflow=True, name = "ut")
-axes_WeffMC = [common.axis_eta, axis_pt_eff, axis_ut, axis_charge, axis_passIso, axis_passMT, axis_passTrigger]
 # sum those groups up in post processing
 groups_to_aggregate = args.aggregateGroups
 
@@ -119,10 +107,10 @@ elif args.theoryAgnostic:
         groups_to_aggregate.append("WmunuOOA")
 
 # axes for study of fakes
+# TODO add these instead to the axis map in common
 axis_mt_fakes = hist.axis.Regular(120, 0., 120., name = "mt", underflow=False, overflow=True)
 axis_dphi_fakes = hist.axis.Regular(8, 0., np.pi, name = "DphiMuonMet", underflow=False, overflow=False)
 axis_hasjet_fakes = hist.axis.Boolean(name = "hasJets") # only need case with 0 jets or > 0 for now
-mTStudyForFakes_axes = [common.axis_eta, common.axis_pt, axis_charge, axis_mt_fakes, axis_passIso, axis_hasjet_fakes, axis_dphi_fakes]
 
 # for mt, met, ptW plots, to compute the fakes properly (but FR pretty stable vs pt and also vs eta)
 # may not exactly reproduce the same pt range as analysis, though
@@ -143,10 +131,10 @@ elif args.binnedScaleFactors:
     logger.info("Using binned scale factors and uncertainties")
     # add usePseudoSmoothing=True for tests with Asimov
     # TODO: This hsouldn't be taken from the common axis, I guess
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = data_dir + "/muonSF/allSmooth_GtoH3D.root", era = era, max_pt = common.axis_pt.edges[-1], usePseudoSmoothing=True)
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = data_dir + "/muonSF/allSmooth_GtoH3D.root", era = era, max_pt = args.ptlmax, usePseudoSmoothing=True)
 else:
     logger.info("Using smoothed scale factors and uncertainties")
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = common.axis_pt.edges[-1], isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = args.ptlmax, isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
 
 logger.info(f"SF file: {args.sfFile}")
 
@@ -272,7 +260,7 @@ def build_graph(df, dataset):
     df = muon_calibration.define_corrected_muons(df, cvh_helper, jpsi_helper, args, dataset, smearing_helper, bias_helper)
 
     df = muon_selections.select_veto_muons(df, nMuons=1)
-    df = muon_selections.select_good_muons(df, 24, 100, dataset.group, nMuons=1, use_trackerMuons=args.trackerMuons, use_isolation=False)
+    df = muon_selections.select_good_muons(df, args.ptlmin, args.ptlmax, dataset.group, nMuons=1, use_trackerMuons=args.trackerMuons, use_isolation=False)
 
     # the corrected RECO muon kinematics, which is intended to be used as the nominal
     df = muon_calibration.define_corrected_reco_muon_kinematics(df)
@@ -386,12 +374,6 @@ def build_graph(df, dataset):
 
     df = df.Define("deltaPhiMuonMet", "std::abs(wrem::deltaPhi(goodMuons_phi0,MET_corr_rec_phi))")
 
-    if auxiliary_histograms: 
-        # couple of histograms specific for tests with fakes
-        mTStudyForFakes = df.HistoBoost("mTStudyForFakes", mTStudyForFakes_axes, ["goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "transverseMass", "passIso", "hasCleanJet", "deltaPhiMuonMet", "nominal_weight"])
-        results.append(mTStudyForFakes)
-
-    # add filter of deltaPhi(muon,met) before other histograms (but after histogram mTStudyForFakes)
     if not args.makeMCefficiency:
         dphiMuonMetCut = args.dphiMuonMetCut * np.pi
         df = df.Filter(f"deltaPhiMuonMet > {dphiMuonMetCut}") # pi/4 was found to be a good threshold for signal with mT > 40 GeV
@@ -400,9 +382,9 @@ def build_graph(df, dataset):
 
     if auxiliary_histograms:
         # utility plot, mt and met, to plot them later (need eta-pt to make fakes)
-        results.append(df.HistoBoost("MET", [axis_met, axis_eta_utilityHist, axis_pt_utilityHist, axis_charge, axis_passIso, axis_passMT], ["MET_corr_rec_pt", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
-        results.append(df.HistoBoost("transverseMass", [axis_mt_fakes, axis_eta_utilityHist, axis_pt_utilityHist, axis_charge, axis_passIso], ["transverseMass", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "nominal_weight"]))
-        results.append(df.HistoBoost("ptW", [axis_recoWpt, axis_eta_utilityHist, axis_pt_utilityHist, axis_charge, axis_passIso, axis_passMT], ["ptW", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
+        results.append(df.HistoBoost("MET", [axis_met, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso, common.axis_passMT], ["MET_corr_rec_pt", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
+        results.append(df.HistoBoost("transverseMass", [axis_mt_fakes, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso], ["transverseMass", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "nominal_weight"]))
+        results.append(df.HistoBoost("ptW", [axis_recoWpt, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso, common.axis_passMT], ["ptW", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
 
     if args.poiAsNoi and isW:
         if args.theoryAgnostic and isWmunu: # TODO: might add Wtaunu at some point, not yet
@@ -432,12 +414,6 @@ def build_graph(df, dataset):
         nominal = df.HistoBoost("nominal", axes, [*cols, "nominal_weight"])
         results.append(nominal)
         results.append(df.HistoBoost("nominal_weight", [hist.axis.Regular(200, -4, 4)], ["nominal_weight"], storage=hist.storage.Double()))
-
-        if args.makeMCefficiency:
-            cols_WeffMC = ["goodMuons_eta0", "goodMuons_pt0", "goodMuons_uT0", "goodMuons_charge0",
-                           "passIso", "passMT", "passTrigger"]
-            yieldsForWeffMC = df.HistoBoost("yieldsForWeffMC", axes_WeffMC, [*cols_WeffMC, "nominal_weight"])
-            results.append(yieldsForWeffMC)
 
         if not args.noRecoil and args.recoilUnc:
             df = recoilHelper.add_recoil_unc_W(df, results, dataset, cols, axes, "nominal")

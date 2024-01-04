@@ -50,6 +50,7 @@ class Recoil:
         self.args = args
         self.storeHists = args.recoilHists
         self.isW = False
+        self.recoil_unc_stat_weights_with_nom = "recoil_unc_stat_weights_with_nom"
 
         if self.met == "DeepMETReso" and pu_type == "highPU":
             recoil_model = f"{common.data_dir}/recoil/highPU_DeepMETReso/model_mc_data.tflite"
@@ -96,7 +97,8 @@ class Recoil:
             self.met_xy_helper_data, self.met_xy_helper_mc = METXYCorrectionHelper(f"{common.data_dir}/recoil/lowPU_RawPFMET/met_xy_mumu.json")
             self.vpt_reweight_helper_mc_data = VPTReweightHelper(f"{common.data_dir}/recoil/lowPU_RawPFMET/vptrw_mc_data_mumu.json")
 
-
+        if args.recoilUnc:
+            self.recoil_var_ax_stat = hist.axis.Integer(0, self.nstat, name="recoil_unc", underflow=False, overflow=False)
 
         self.axis_MET_pt = hist.axis.Regular(200, 0, 200, name = "recoil_MET_pt", underflow=False)
         self.axis_MET_phi = hist.axis.Regular(50, -4, 4, name = "recoil_MET_phi")
@@ -623,6 +625,7 @@ class Recoil:
 
     def apply_recoil_W(self): 
 
+        print("Applying recoil", self.dataset.name)
         if self.dataset.name in self.datasets_to_apply:
             
             # old stuff
@@ -686,23 +689,22 @@ class Recoil:
     def add_recoil_unc_W(self, df, results, dataset, cols, axes, hName):
         return self.add_recoil_unc_Z(df, results, dataset, cols, axes, hName) # currently use the Z implementation
 
-    def setup_recoil_Z_unc(self):
-        if not self.dataset.name in self.datasets_to_apply or not self.storeHists:
-            return
+    #def setup_recoil_unc_common(self, hNames, cols, axes):
 
+    def setup_recoil_Z_unc(self):
         hNames, cols, axes = [], [], [] 
         if self.storeHists:
             hNames = ["recoil_corr_rec_para_qt", "recoil_corr_rec_para", "recoil_corr_rec_perp", "recoil_corr_rec_magn", "met_corr_rec_pt", "mt_corr_rec"]
             cols = hNames
             axes = [self.axis_recoil_para_qT, self.axis_recoil_para, self.axis_recoil_perp, self.axis_recoil_magn, self.axis_MET_pt, self.axis_mt]
 
+        if not self.dataset.name in self.datasets_to_apply:
+            return
+
         # statistical uncertainties
         self.df = self.df.Define("recoil_unc_stat_weights", "recoil_corr.unc_weights")
         self.recoil_unc_stat_weights_with_nom = "recoil_unc_stat_weights_with_nom"
         self.df = self.df.Define(self.recoil_unc_stat_weights_with_nom, "auto res = recoil_unc_stat_weights; res = nominal_weight*res; return res;") # 
-        self.recoil_var_ax_stat = hist.axis.Integer(0, self.nstat, name="recoil_unc", underflow=False, overflow=False)
-
-
         # systematic uncertainties
         self.df = self.df.Define("recoil_syst_bkg_para_w", self.recoil_syst_bkg_para, ["v_pt", "recoil_corr_xy_para"])
         self.df = self.df.Define("recoil_syst_bkg_perp_w", self.recoil_syst_bkg_perp, ["v_pt", "recoil_corr_xy_perp"])
@@ -739,22 +741,18 @@ class Recoil:
 
 
     def setup_recoil_W_unc(self):
-        if not self.dataset.name in self.datasets_to_apply or not self.storeHists:
-            return
-
         hNames, cols, axes = [], [], [] 
         if self.storeHists:
             hNames = ["met_corr_rec_pt", "mt_corr_rec"]
             cols = hNames
             axes = [self.axis_MET_pt, self.axis_mt]
 
+        if not self.dataset.name in self.datasets_to_apply:
+            return
+
         # statistical uncertainties
         self.df = self.df.Define("recoil_unc_stat_weights", "recoil_corr.unc_weights")
-        self.recoil_unc_stat_weights_with_nom = "recoil_unc_stat_weights_with_nom"
         self.df = self.df.Define(self.recoil_unc_stat_weights_with_nom, "auto res = recoil_unc_stat_weights; res = nominal_weight*res; return res;") # 
-        self.recoil_var_ax_stat = hist.axis.Integer(0, self.nstat, name="recoil_unc", underflow=False, overflow=False)
-
-
         # systematic uncertainties
         self.df = self.df.Define("recoil_syst_bkg_para_w", self.recoil_syst_bkg_para, ["v_gen_pt", "recoil_corr_xy_para_gen"])
         self.df = self.df.Define("recoil_syst_bkg_perp_w", self.recoil_syst_bkg_perp, ["v_gen_pt", "recoil_corr_xy_perp_gen"])

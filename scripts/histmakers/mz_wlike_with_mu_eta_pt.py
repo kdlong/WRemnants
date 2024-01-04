@@ -18,18 +18,27 @@ import numpy as np
 
 parser.add_argument("--mtCut", type=int, default=45, help="Value for the transverse mass cut in the event selection") # 40 for Wmass, thus be 45 here (roughly half the boson mass)
 
+args = parser.parse_args()
 parser = common.set_parser_default(parser, "genVars", ["qGen", "ptGen", "absEtaGen"])
 parser = common.set_parser_default(parser, "genBins", [18, 0])
-parser = common.set_parser_default(parser, "pt", [34, 26, 60])
+if "pt" in args.nominalAxes and "eta" in args.nominalAxes:
+    if args.unfolding:
+        parser = common.set_parser_default(parser, "ptlmin", 31)
+        parser = common.set_parser_default(parser, "ptlmax", 61)
+        parser = common.set_parser_default(parser, "nominalAxLow", [31, -2.4])
+        parser = common.set_parser_default(parser, "nominalAxHigh", [61, 2.4])
+        parser = common.set_parser_default(parser, "nominalBins", [30, 48])
+    else:
+        parser = common.set_parser_default(parser, "ptlmin", 26)
+        parser = common.set_parser_default(parser, "ptlmax", 62)
+        parser = common.set_parser_default(parser, "nominalAxLow", [26, -2.4])
+        parser = common.set_parser_default(parser, "nominalAxHigh", [62, 2.4])
+        parser = common.set_parser_default(parser, "nominalBins", [36, 48])
 parser = common.set_parser_default(parser, "aggregateGroups", ["Diboson", "Top", "Wtaunu", "Wmunu"])
 parser = common.set_parser_default(parser, "theoryCorr", ["scetlib_dyturbo", "virtual_ew_wlike", "horaceqedew_FSR"])
 
 args = parser.parse_args()
 logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
-
-if args.unfolding:
-    parser = common.set_parser_default(parser, "pt", [36,26.,62.])
-    args = parser.parse_args()
 
 thisAnalysis = ROOT.wrem.AnalysisType.Wlike
 era = args.era
@@ -48,23 +57,13 @@ mass_max = 120
 # transverse boson mass cut
 mtw_min=args.mtCut 
 
-# custom template binning
-template_neta = int(args.eta[0])
-template_mineta = args.eta[1]
-template_maxeta = args.eta[2]
-logger.info(f"Eta binning: {template_neta} bins from {template_mineta} to {template_maxeta}")
-template_npt = int(args.pt[0])
-template_minpt = args.pt[1]
-template_maxpt = args.pt[2]
-logger.info(f"Pt binning: {template_npt} bins from {template_minpt} to {template_maxpt}")
+axes,branches = common.get_nominal_axes_and_banches(args.nominalAxes, args.nominalBins, args.nominalAxLow, args.nominalAxHigh, "trigMuons")
 
-# standard regular axes
-axis_eta = hist.axis.Regular(template_neta, template_mineta, template_maxeta, name = "eta", overflow=False, underflow=False)
-axis_pt = hist.axis.Regular(template_npt, template_minpt, template_maxpt, name = "pt", overflow=False, underflow=False)
+nominal_axes = [*axes, common.axis_charge]
+nominal_cols = [*branches, "trigMuons_charge0"]
 
-nominal_axes = [axis_eta, axis_pt, common.axis_charge]
-nominal_cols = ["trigMuons_eta0", "trigMuons_pt0", "trigMuons_charge0"]
-
+template_minpt = args.ptlmin
+template_maxpt = args.ptlmax
 if args.unfolding:
     template_wpt = (template_maxpt-template_minpt)/args.genBins[0]
     min_pt_unfolding = template_minpt+template_wpt
@@ -87,10 +86,10 @@ qcdScaleByHelicity_helper = wremnants.theory_corrections.make_qcd_uncertainty_he
 if args.binnedScaleFactors:
     logger.info("Using binned scale factors and uncertainties")
     # add usePseudoSmoothing=True for tests with Asimov
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = args.sfFile, era = era, max_pt = axis_pt.edges[-1], is_w_like = True) 
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_binned(filename = args.sfFile, era = era, max_pt = args.ptlmax, is_w_like = True) 
 else:
     logger.info("Using smoothed scale factors and uncertainties")
-    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = axis_pt.edges[-1], isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
+    muon_efficiency_helper, muon_efficiency_helper_syst, muon_efficiency_helper_stat = wremnants.make_muon_efficiency_helpers_smooth(filename = args.sfFile, era = era, what_analysis = thisAnalysis, max_pt = args.ptlmax, isoEfficiencySmoothing = args.isoEfficiencySmoothing, smooth3D=args.smooth3dsf, isoDefinition=args.isolationDefinition)
 logger.info(f"SF file: {args.sfFile}")
 
 pileup_helper = wremnants.make_pileup_helper(era = era)

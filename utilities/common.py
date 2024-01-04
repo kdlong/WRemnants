@@ -167,8 +167,8 @@ def common_parser(for_reco_highPU=False):
     parser.add_argument("--theoryCorrAltOnly", action='store_true', help="Save hist for correction hists but don't modify central weight")
     parser.add_argument("--widthVariations", action='store_true', help="Store variations of W and Z widths.")
     parser.add_argument("--skipHelicity", action='store_true', help="Skip the qcdScaleByHelicity histogram (it can be huge)")
-    parser.add_argument("--eta", nargs=3, type=float, help="Eta binning as 'nbins min max' (only uniform for now)", default=[48,-2.4,2.4])
-    parser.add_argument("--pt", nargs=3, type=float, help="Pt binning as 'nbins,min,max' (only uniform for now)", default=[30,26.,56.])
+    parser.add_argument("--ptlmin", type=float, default=26., help="Minimum ptlepton for selection cut")
+    parser.add_argument("--ptlmax", type=float, default=56., help="Maximum ptlepton for selection cut")
     parser.add_argument("--nominalAxes", type=str, nargs="+", default=["pt", "eta"], choices=_axis_defaults.keys(), help="Observables of nominal histograms")
     parser.add_argument("--nominalAxLow", type=float, nargs="*", default=[], help="Lower bin edge of nominal axes (matching order of --nominalAxes)")
     parser.add_argument("--nominalAxHigh", type=float, nargs="*", default=[], help="Lower bin edge of nominal axes (matching order of --nominalAxes)")
@@ -321,28 +321,29 @@ def list_to_string(list_str):
 
 _axis_defaults = {
     "pt" : {
-        "branchName" : "goodMuons_pt0",
+        "branchName" : "{leptonsName}_pt0",
         "default" : hist.axis.Regular(30, 26., 56., name="pt", flow=False),
     },
     "eta" : {
-        "branchName" : "goodMuons_eta0",
+        "branchName" : "{leptonsName}_eta0",
         "default" : hist.axis.Regular(48, -2.4, 2.4, name="eta", flow=False),
     },
-    "mt" : { "branchName" : "transverseMass",
-            # Should probably be variable
-            "default" : hist.axis.Regular(120, 0, 120, name="mt") 
+    "mt" : { 
+        "branchName" : "transverseMass",
+        # Should probably be variable
+        "default" : hist.axis.Regular(120, 0, 120, name="mt") 
     },
     "ptfake" : {
-        "branchName" : "goodMuons_pt0",
+        "branchName" : "{leptonsName}_pt0",
         "default" : hist.axis.Regular(6, 26., 56., name="pt", flow=False),
     },
     "etafake" : {
-        "branchName" : "goodMuons_eta0",
+        "branchName" : "{leptonsName}_eta0",
         "default" : hist.axis.Regular(24, -2.4, 2.4, name="eta", flow=False),
     },
 }
 
-def get_nominal_axes_and_banches(axis_names, nbins, low_edges, high_edges):
+def get_nominal_axes_and_banches(axis_names, nbins, low_edges, high_edges, leptonsName="goodMuons"):
     logger = logging.child_logger(__name__)
 
     axes = []
@@ -362,7 +363,7 @@ def get_nominal_axes_and_banches(axis_names, nbins, low_edges, high_edges):
             overflow = info["default"].traits.overflow
             underflow = info["default"].traits.underflow
             axes.append(hist.axis.Regular(nbin, low, high, name=ax, overflow=overflow, underflow=underflow))
-        branch = info["branchName"]
+        branch = info["branchName"].format(leptonsName=leptonsName)
         branches.append(branch)
         ax = axes[-1]
         logger.info(f"Axis {ax.name}: {ax.size} bins from {ax.edges[0]} to {ax.edges[-1]}; filled by branch {branch}")

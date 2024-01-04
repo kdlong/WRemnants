@@ -122,7 +122,7 @@ def copy_to_eos(outpath, outfolder=None):
 
     for f in glob.glob(tmppath+"/*"):
         if os.path.isfile(f):
-            command = ["xrdcp", "-f", f, "/".join(["root://eosuser.cern.ch", eospath, f.replace("temp/", "")])]
+            command = ["xrdcp", "-f", f, "/".join(["root://eosuser.cern.ch", eospath, f.replace("temp/", "", 1)])]
 
             logger.debug(f"Executing {' '.join(command)}")
             if subprocess.call(command):

@@ -69,7 +69,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     fig, xlim = cfgFigure(href, xlim, bin_density, width_scale, automatic_scale)
     
     ax1 = fig.add_subplot(4, 1, (1, 3)) 
-    if cms_label: hep.cms.text(cms_label)
+    if cms_label: hep.cms.text(cms_label, fontsize=20)
     ax2 = fig.add_subplot(4, 1, 4) 
 
     ax2.set_xlabel(xlabel)
@@ -314,7 +314,7 @@ def makePlotWithRatioToRef(
     rrange=[0.9, 1.1], ylim=None, xlim=None, nlegcols=2, binwnorm=None, alpha=1.,
     baseline=True, data=False, autorrange=None, grid = False, extra_text=None, extra_text_loc=(0.8, 0.7),
     yerr=False, legtext_size=20, plot_title=None, x_ticks_ndp = None, bin_density = 300, yscale=None,
-    logy=False, logx=False, fill_between=False, title_padding = 0, cms_label = None
+    logy=False, logx=False, fill_between=False, title_padding = 0, cms_label = None, skip_ratio=0
 ):
     if len(hists) != len(labels) or len(hists) != len(colors):
         raise ValueError(f"Number of hists ({len(hists)}), colors ({len(colors)}), and labels ({len(labels)}) must agree!")
@@ -344,7 +344,7 @@ def makePlotWithRatioToRef(
     )
 
     if len(hists) > 1:
-        ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001, flow=False, by_ax_name=False) for h in hists[not baseline:]]
+        ratio_hists = [hh.divideHists(h, hists[0], cutoff=0.00001, flow=False, by_ax_name=False) for h in hists[not baseline:len(hists)-skip_ratio]]
         if fill_between:
             for up,down,color in zip(hists[1::2], hists[2::2], colors[1::2]):
                 upr = hh.divideHists(up, hists[0], 1e-6, flow=False, by_ax_name=False)

@@ -6,6 +6,7 @@ parser,initargs = common.common_parser()
 parser.add_argument("--lumiUncertainty", type=float, help="Uncertainty for luminosity in excess to 1 (e.g. 1.017 means 1.7\%)", default=1.017)
 parser.add_argument("--noGenMatchMC", action='store_true', help="Don't use gen match filter for prompt muons with MC samples (note: QCD MC never has it anyway)")
 parser.add_argument("--flavor", type=str, choices=["e", "mu"], help="Flavor (e or mu)", default="mu")
+parser.add_argument("--targetMu", type=int, default=4, help="Target average pileup")
 
 parser = common.set_parser_default(parser, "genVars", ["ptVGen"])
 args = parser.parse_args()
@@ -50,8 +51,8 @@ axis_fakerate_pt = hist.axis.Variable([26., 27., 28., 29., 30., 32., 34., 37., 4
 axis_fakerate_eta = hist.axis.Regular(12, -2.4, 2.4, name = "eta", underflow=False, overflow=False)
 
 # standard regular axes
-axis_eta = hist.axis.Regular(args.eta[0], args.eta[1], args.eta[2], name = "eta", underflow=False, overflow=False)
-axis_pt = hist.axis.Regular(args.pt[0], args.pt[1], args.pt[2], name = "pt", underflow=False)
+axis_eta = common._axis_defaults["pt"]["axis"]
+axis_pt = common._axis_defaults["eta"]["axis"]
 axis_phi = hist.axis.Regular(50, -4, 4, name = "phi")
 axis_iso = hist.axis.Regular(50, 0, 1, underflow=False, overflow=True, name = "iso")
 
@@ -124,11 +125,11 @@ def build_graph(df, dataset):
 
         if hasattr(dataset, "out_of_acceptance"):
             logger.debug("Reject events in fiducial phase space")
-            df = unfolding_tools.select_fiducial_space(df, mode="wmass", pt_min=args.pt[1], pt_max=args.pt[2], 
+            df = unfolding_tools.select_fiducial_space(df, mode="wmass", pt_min=args.ptlmin, pt_max=args.ptlmax, 
                 mtw_min=mtw_min, selections=unfolding_selections, accept=False)
         else:
             logger.debug("Select events in fiducial phase space")
-            df = unfolding_tools.select_fiducial_space(df, mode="wmass", pt_min=args.pt[1], pt_max=args.pt[2], 
+            df = unfolding_tools.select_fiducial_space(df, mode="wmass", pt_min=args.ptlmin, pt_max=args.ptlmax, 
                 mtw_min=mtw_min, selections=unfolding_selections, accept=True)
 
             unfolding_tools.add_xnorm_histograms(results, df, args, dataset.name, corr_helpers, qcdScaleByHelicity_helper, unfolding_axes, unfolding_cols)
@@ -155,7 +156,7 @@ def build_graph(df, dataset):
         df = df.Define("vetoElectrons", "Electron_pt > 10 && Electron_cutBased > 0 && abs(Electron_eta) < 2.4")
         df = df.Filter("Sum(vetoElectrons) == 0")
         
-        df = df.Define("goodLeptons", f"vetoMuons && Muon_pt_corr > {args.pt[1]} && Muon_mediumId") # ISO requirement comes later   && Muon_pfRelIso04_all < 0.15
+        df = df.Define("goodLeptons", f"vetoMuons && Muon_pt_corr > {args.ptlmin} && Muon_mediumId") # ISO requirement comes later   && Muon_pfRelIso04_all < 0.15
         df = df.Define("goodLeptonsPlus", "goodLeptons && Muon_charge > 0")
         df = df.Define("goodLeptonsMinus", "goodLeptons && Muon_charge < 0")
         df = df.Filter("Sum(goodLeptons) == 1")
@@ -221,7 +222,7 @@ def build_graph(df, dataset):
     df = df.Define("lep_mass", "Lep_mass[0]")
     df = df.Define("lep_iso", "Lep_iso[0]")
     
-    df = df.Filter(f"lep_pt > {args.pt[1]} && lep_pt < {args.pt[2]}")
+    df = df.Filter(f"lep_pt > {args.ptlmin} && lep_pt < {args.ptlmax}")
     df = muon_selections.apply_met_filters(df)
 
     if not dataset.is_data: 
@@ -238,7 +239,7 @@ def build_graph(df, dataset):
             df = df.Define("prefireCorr", "wrem::prefireCorr(0, Jet_pt, Jet_eta, Jet_phi, Jet_muEF, Jet_neEmEF, Jet_chEmEF, Photon_pt, Photon_eta, Photon_phi, Lep_pt, Lep_eta, Lep_phi)")
             df = df.Define("SFMC", "lepSF_IDISO*lepSF_HLT*prefireCorr")
 
-        df = df.Define("exp_weight", "1.0")# "SFMC")
+        df = df.Define("exp_weight", f"wrem::reweight_poisson(Pileup_nTrueInt, {args.targetMu}, Pileup_nPU)")
         df = theory_tools.define_theory_weights_and_corrs(df, dataset.name, corr_helpers, args)
     else:
         df = df.DefinePerSample("nominal_weight", "1.0")
@@ -257,8 +258,9 @@ def build_graph(df, dataset):
         lep_cols = ["lep_pt", "lep_phi", "lep_charge", "lep_pt_uncorr"]
         df = recoilHelper.recoil_W(df, results, dataset, common.vprocs_lowpu, lep_cols) # produces corrected MET as MET_corr_rec_pt/phi  vprocs_lowpu wprocs_recoil_lowpu
     else:
-        df = df.Alias("MET_corr_rec_pt", "MET_pt")
-        df = df.Alias("MET_corr_rec_phi", "MET_phi")
+        met_name = 'MET' if args.met != 'DeepMETReso' else 'DeepMETResolutionTune'
+        df = df.Alias("MET_corr_rec_pt", f"{met_name}_pt")
+        df = df.Alias("MET_corr_rec_phi", f"{met_name}_phi")
         df = df.Define("mT_corr_rec", "wrem::mt_2(lep_pt, lep_phi, MET_corr_rec_pt, MET_corr_rec_phi)")
 
     df = df.Alias("transverseMass", "mT_corr_rec")
@@ -413,8 +415,8 @@ def build_graph_cutFlow(df, dataset):
     
 
         # mT cut
-        if met == "DeepMETReso": df = df.Define("mT_uncorr", "wrem::mt_2(Lep_pt, Lep_phi, DeepMETResolutionTune_pt, DeepMETResolutionTune_phi)")
-        if met == "RawPFMET": df = df.Define("mT_uncorr", "wrem::mt_2(Lep_pt, Lep_phi, RawMET_pt, RawMET_phi)")
+        if args.met == "DeepMETReso": df = df.Define("mT_uncorr", "wrem::mt_2(Lep_pt, Lep_phi, DeepMETResolutionTune_pt, DeepMETResolutionTune_phi)")
+        if args.met == "RawPFMET": df = df.Define("mT_uncorr", "wrem::mt_2(Lep_pt, Lep_phi, RawMET_pt, RawMET_phi)")
         df = df.Filter("mT_uncorr > 40")
         results.append(df.HistoBoost("cutflow_12", [axis_cutFlow], ["cutFlow", "weight"]))
 

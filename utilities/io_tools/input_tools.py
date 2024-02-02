@@ -177,22 +177,42 @@ def read_dyturbo_vars_hist(base_name, var_axis=None, axes=("Y", "qT"), charge=No
 
 def read_dyturbo_hist(filenames, path="", axes=("y", "pt"), charge=None, coeff=None):
     filenames = [os.path.expanduser(os.path.join(path, f)) for f in filenames]
+
     isfile = list(filter(lambda x: os.path.isfile(x), filenames))
 
-    if not isfile:
-        raise ValueError(f"Did not find any valid files in {filenames}")
+    hists = []
+    for fn in filenames:
+        expandedf = fn.split("+")
 
-    hists = [read_dyturbo_file(f, axes, charge, coeff) for f in isfile]
+        hs = []
+        for f in expandedf:
+            if not os.path.isfile(f):
+                raise ValueError(f"{f} is not a valid file!")
+
+        print("Reading fn", fn)
+        if len(expandedf) == 1:
+            print("To read", fn)
+            hs.append(read_dyturbo_file(fn, axes, charge, coeff))
+        elif len(expandedf) == 2:
+            hs.append(hh.concatenateHists(*[read_dyturbo_file(f, axes, charge, coeff) for f in expandedf]))
+        else:
+            raise ValueError("Concatenate only supported for 2 files at present")
+
+        for hi in hists: print("sum first is", hi.sum())
+        hists.extend(hs)
+
     if len(hists) > 1:
         hists = hh.rebinHistsToCommon(hists, 0)
 
+    for hi in hists: print("sum now is", hi.sum())
     h = hh.sumHists(hists)
+    print("Here h is", h.sum())
 
     if charge is not None and "charge" not in h.axes.name:
         charge_args = (2, -2., 2.) if charge != 0 else (1, 0, 1) 
         charge_axis = hist.axis.Regular(*charge_args, flow=False, name = "charge")
         hnew = hist.Hist(*h.axes, charge_axis, storage=h._storage_type())
-        hnew[...,charge_axis.index(charge)] = h.view(flow=True)
+        hnew[...,charge_axis.index(charge)] = h.view(flow=False)
         return hnew
     else:
         return h
@@ -264,7 +284,7 @@ def read_dyturbo_file(filename, axnames=("Y", "qT"), charge=None, coeff=None):
             # Normally last line is the total cross section, also possible it isn't, so check the bin ranges
             offset = offset and data[-1,2*i] == data[0,2*i] and data[-1,2*i+1] == data[-2,2*i+1]
             bins = sorted(list(set(data[:len(data)-offset,2*i:2*i+2].flatten())))
-            axes.append(hist.axis.Variable(bins, name=name, underflow=not (bins[0] == 0 and "qT" in name)))
+            axes.append(hist.axis.Variable(bins, name=name, flow=False))
 
         h = hist.Hist(*axes, storage=hist.storage.Weight())
         h[...] = np.reshape(data[:len(data)-offset,len(axes)*2:], (*h.axes.size, 2))

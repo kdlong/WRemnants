@@ -148,6 +148,30 @@ def multiplyHists(h1, h2, allowBroadcast=True, createNew=True, flow=True):
 
     return outh
 
+# TODO: Figure out the overflow
+def concatenateHists(h1, h2, allowBroadcast=True, by_ax_name=True):
+    if allowBroadcast:
+        h1 = broadcastSystHist(h1, h2, flow=False, by_ax_name=by_ax_name)
+        h2 = broadcastSystHist(h2, h1, flow=False, by_ax_name=by_ax_name)
+
+    axes = []
+    for ax1, ax2 in zip(h1.axes, h2.axes):
+        if ax1.edges[0] > ax2.edges[0]:
+            ax1,ax2 = ax2,ax1
+
+        if (ax1.edges == ax2.edges).all():
+            axes.append(ax1)
+        elif ax1.edges[-1] == ax2.edges[0]:
+            axes.append(hist.axis.Variable(np.concatenate((ax1.edges, ax2.edges[1:])), name=ax1.name, flow=False))
+        else:
+            raise ValueError(f"Cannot concatenate hists with inconsistent axes: {ax1.name} and {ax2.name}")
+
+    newh = hist.Hist(*axes, storage=h1.storage_type())
+    newh.view()[newh.axes.index(*h1.axes.centers)] = h1.view()
+    newh.view()[newh.axes.index(*h2.axes.centers)] = h2.view()
+
+    return newh
+
 def addHists(h1, h2, allowBroadcast=True, createNew=True, scale1=None, scale2=None, flow=True, by_ax_name=True):
     if allowBroadcast:
         h1 = broadcastSystHist(h1, h2, flow=flow, by_ax_name=by_ax_name)

@@ -188,6 +188,7 @@ class HDF5Writer(object):
 
             # get nominal histograms of any of the processes to keep track of the list of axes
             hist_nominal = dg.groups[procs_chan[0]].hists[chanInfo.nominalName] 
+            print(hist_nominal.axes, axes)
             hist_axes[chan] = [hist_nominal.axes[a] for a in axes]
 
             # nominal predictions

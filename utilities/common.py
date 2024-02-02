@@ -322,24 +322,24 @@ def list_to_string(list_str):
 _axis_defaults = {
     "pt" : {
         "branchName" : "{leptonsName}_pt0",
-        "default" : hist.axis.Regular(30, 26., 56., name="pt", flow=False),
+        "axis" : hist.axis.Regular(30, 26., 56., name="pt", flow=False),
     },
     "eta" : {
         "branchName" : "{leptonsName}_eta0",
-        "default" : hist.axis.Regular(48, -2.4, 2.4, name="eta", flow=False),
+        "axis" : hist.axis.Regular(48, -2.4, 2.4, name="eta", flow=False),
     },
     "mt" : { 
         "branchName" : "transverseMass",
         # Should probably be variable
-        "default" : hist.axis.Regular(120, 0, 120, name="mt") 
+        "axis" : hist.axis.Regular(120, 0, 120, name="mt") 
     },
     "ptfake" : {
         "branchName" : "{leptonsName}_pt0",
-        "default" : hist.axis.Regular(6, 26., 56., name="pt", flow=False),
+        "axis" : hist.axis.Regular(6, 26., 56., name="pt", flow=False),
     },
     "etafake" : {
         "branchName" : "{leptonsName}_eta0",
-        "default" : hist.axis.Regular(24, -2.4, 2.4, name="eta", flow=False),
+        "axis" : hist.axis.Regular(24, -2.4, 2.4, name="eta", flow=False),
     },
 }
 
@@ -358,10 +358,10 @@ def get_nominal_axes_and_banches(axis_names, nbins, low_edges, high_edges, lepto
 
         info = _axis_defaults[ax]
         if nbin is None and low is None and high is None:
-            axes.append(info["default"])
+            axes.append(info["axis"])
         else:
-            overflow = info["default"].traits.overflow
-            underflow = info["default"].traits.underflow
+            overflow = info["axis"].traits.overflow
+            underflow = info["axis"].traits.underflow
             axes.append(hist.axis.Regular(nbin, low, high, name=ax, overflow=overflow, underflow=underflow))
         branch = info["branchName"].format(leptonsName=leptonsName)
         branches.append(branch)

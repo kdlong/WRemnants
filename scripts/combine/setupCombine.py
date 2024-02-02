@@ -235,9 +235,12 @@ def setup(args, inputFile, fitvar, xnorm=False):
         histName = "xnorm"
         cardTool.setHistName(histName)
         cardTool.setNominalName(histName)
-    else:
+    elif lowPU:
         cardTool.setHistName(args.baseName)
         cardTool.setNominalName(args.baseName)
+    else:
+        cardTool.setHistName("nominal")
+        cardTool.setNominalName("nominal")
         
     # define sumGroups for integrated cross section
     if args.unfolding and not args.poiAsNoi:
@@ -260,7 +263,11 @@ def setup(args, inputFile, fitvar, xnorm=False):
             # FIXME: should make sure to apply the same customizations as for the nominal datagroups so far
             pseudodataGroups = Datagroups(args.pseudoDataFile, excludeGroups=excludeGroup, filterGroups=filterGroup, applySelection= not xnorm and not args.ABCD, simultaneousABCD=args.ABCD)
             cardTool.setPseudodataDatagroups(pseudodataGroups)
-    cardTool.setLumiScale(args.lumiScale)
+    if lowPU:
+        cardTool.setLumiScale(args.lumiScale)
+    else:
+        logger.warning("Ack! Egregious hack!")
+        cardTool.setLumiScale(1.)
 
     if not args.theoryAgnostic:
         logger.info(f"cardTool.allMCProcesses(): {cardTool.allMCProcesses()}")

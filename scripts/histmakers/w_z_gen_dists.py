@@ -90,7 +90,7 @@ axis_chargeZgen = hist.axis.Integer(
 )
 
 axis_l_eta_gen = hist.axis.Regular(48, -2.4, 2.4, name = "eta")
-axis_l_pt_gen = hist.axis.Regular(29, 26., 55., name = "pt")
+axis_l_pt_gen = hist.axis.Regular(100, 0, 100, name = "pt")
 
 corr_helpers = theory_corrections.load_corr_helpers(common.vprocs, args.theoryCorr)
 
@@ -118,6 +118,7 @@ def build_graph(df, dataset):
 
 
     df = theory_tools.define_theory_weights_and_corrs(df, dataset.name, corr_helpers, args)
+    df = theory_tools.define_postfsr_vars(df, mode="wmass" if isW else "wlike")
 
     if isZ:
         nominal_axes = [axis_massZgen, axis_rapidity, axis_ptqVgen if args.ptqVgen else axis_ptVgen, axis_chargeZgen]
@@ -145,7 +146,7 @@ def build_graph(df, dataset):
         axis_ewMll = hist.axis.Variable(massBins, name = "ewMll", underflow=False)
         axis_ewLogDeltaM = hist.axis.Regular(90, -5, 4, name = "ewLogDeltaM")
         axis_ewPtll = hist.axis.Variable(common.ptV_binning, underflow=False, name = "ewPTll") 
-        # axis_ewPtll = hist.axis.Regular(100, 0, 100, underflow=False, name = "ewPTll")
+        axis_mt = hist.axis.Regular(120, 0, 120, underflow=False, name = "mt")
 
         results.append(df.HistoBoost("nominal_ew", [axis_ewMll, axis_ewLogDeltaM], ['ewMll', 'ewLogDeltaM', "nominal_weight"], storage=hist.storage.Weight()))
         results.append(df.HistoBoost("nominal_ewMllPTll", [axis_ewMll, axis_ewPtll], ["ewMll", "ewPTll", "nominal_weight"], storage=hist.storage.Weight()))
@@ -166,6 +167,7 @@ def build_graph(df, dataset):
             results.append(df.HistoBoost("nominal_PTlly", [axis_PTlly], ["ewPTlly", "nominal_weight"], storage=hist.storage.Weight()))
             results.append(df.HistoBoost("nominal_Yll",  [axis_Yll],  ["ewYll", "nominal_weight"], storage=hist.storage.Weight()))
             results.append(df.HistoBoost("nominal_Ylly", [axis_Ylly], ["ewYlly", "nominal_weight"], storage=hist.storage.Weight()))
+            results.append(df.HistoBoost("mt",  [axis_mt],  ["postfsrMT", "nominal_weight"], storage=hist.storage.Weight()))
 
             # single lepton hists
             if args.singleLeptonHists:
@@ -213,7 +215,6 @@ def build_graph(df, dataset):
                 # apply acceptance cuts on post FSR objects
                 if isZ:
                     # mz_wlike_with_mu_eta_pt.py selection, don't cut on chosen lepton pt,eta as this will be used in binning
-                    df = theory_tools.define_postfsr_vars(df, mode="wlike")
                     df_fiducial = df.Filter(f"""
                         postfsrOtherLep_pt>26 && postfsrOtherLep_pt<60 
                         && postfsrOtherLep_absEta<2.5
@@ -223,11 +224,11 @@ def build_graph(df, dataset):
                         """)
                 elif isW:
                     # mw_with_mu_eta_pt.py selection, don't cut on chosen lepton pt,eta as this will be used in binning
-                    df = theory_tools.define_postfsr_vars(df, mode="wmass")
-                    df_fiducial = df.Filter(f"""
-                        postfsrMT > 40
-                        && postfsrDeltaPhiMuonMet > {np.pi/4.}
-                        """)
+                    #df_fiducial = df.Filter(f"""
+                    #    postfsrMT > 40
+                    #    && postfsrDeltaPhiMuonMet > {np.pi/4.}
+                    #    """)
+                    df_fiducial = df
 
                 # postfsr definition
                 axis_eta = hist.axis.Regular(25, 0, 2.5, name = "postfsrLep_absEta", overflow=True, underflow=False)

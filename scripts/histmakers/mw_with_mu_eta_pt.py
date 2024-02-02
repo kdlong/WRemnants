@@ -365,8 +365,10 @@ def build_graph(df, dataset):
         leps_corr = ["goodMuons_pt0", "goodMuons_eta0", "goodMuons_phi0", "goodMuons_charge0"]
         df = recoilHelper.recoil_W(df, results, dataset, common.vprocs, leps_uncorr, leps_corr, cols_fakerate=nominal_cols, axes_fakerate=nominal_axes, mtw_min=mtw_min) # produces corrected MET as MET_corr_rec_pt/phi
     else:
-        df = df.Alias("MET_corr_rec_pt", "MET_pt")
-        df = df.Alias("MET_corr_rec_phi", "MET_phi")
+        met_name = 'MET' if args.met != 'DeepMETReso' else 'DeepMETResolutionTune'
+        df = df.Alias("MET_corr_rec_pt", f"{met_name}_pt")
+        df = df.Alias("MET_corr_rec_phi", f"{met_name}_phi")
+
 
     df = df.Define("ptW", "wrem::pt_2(goodMuons_pt0, goodMuons_phi0, MET_corr_rec_pt, MET_corr_rec_phi)")
     df = df.Define("transverseMass", "wrem::mt_2(goodMuons_pt0, goodMuons_phi0, MET_corr_rec_pt, MET_corr_rec_phi)")
@@ -385,7 +387,6 @@ def build_graph(df, dataset):
         results.append(df.HistoBoost("MET", [axis_met, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso, common.axis_passMT], ["MET_corr_rec_pt", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
         results.append(df.HistoBoost("transverseMass", [axis_mt_fakes, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso], ["transverseMass", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "nominal_weight"]))
         results.append(df.HistoBoost("ptW", [axis_recoWpt, axis_eta_utilityHist, axis_pt_utilityHist, common.axis_charge, common.axis_passIso, common.axis_passMT], ["ptW", "goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "passIso", "passMT", "nominal_weight"]))
-
     if args.poiAsNoi and isW:
         if args.theoryAgnostic and isWmunu: # TODO: might add Wtaunu at some point, not yet
             noiAsPoiHistName = Datagroups.histName("nominal", syst="yieldsTheoryAgnostic")
@@ -425,6 +426,7 @@ def build_graph(df, dataset):
             cols_gen, cols_gen_smeared = muon_calibration.make_alt_reco_and_gen_hists(df, results, axes, cols, reco_sel_GF)
             if args.validationHists: 
                 muon_validation.make_reco_over_gen_hists(df, results)
+                results.append(df.HistoBoost("genPt", [common._axis_defaults["pt"]["axis"], common.axis_charge, common.axis_passIso, common.axis_passMT], [f"{reco_sel}_pt0_gen", "passIso", "passMT", "nominal_weight"]))
 
     if not dataset.is_data and not args.onlyMainHistograms:
 

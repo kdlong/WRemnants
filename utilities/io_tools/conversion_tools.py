@@ -116,9 +116,9 @@ def fitresult_pois_to_hist(infile, result=None, poi_types = ["mu", "pmaskedexp",
                     axes_names = [a.name for a in axes]
 
                     data = combinetf_input.select_pois(df, axes_names, base_processes=proc, flow=True)
-                    print("-----> Poi", poi_type)
-                    print(data["value"].values)
-                    print("Scale", scale)
+                    logger.debug(f"-----> Poi {poi_type}")
+                    logger.debug(f"value = {data["value"].values}")
+                    logger.debug(f"Scale = {scale}")
 
                     values = np.reshape(data["value"].values/channel_scale, shape)
                     variances = np.reshape( (data["err_total"].values/channel_scale)**2, shape)

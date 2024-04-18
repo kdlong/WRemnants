@@ -32,9 +32,8 @@ def define_gen_level(df, gen_level, dataset_name, mode="wmass"):
     if gen_level not in gen_levels:
         raise ValueError(f"Unknown gen level '{gen_level}'! Supported gen level definitions are '{gen_levels}'.")
 
-    modes = ["wmass", "wlike", "dilepton"]
-    if mode not in modes:
-        raise ValueError(f"Unknown mode '{mode}'! Supported modes are '{modes}'.")
+    logger.info(f"Using {gen_level} leptons")
+    mz = "mz" in mode
 
     if gen_level == "preFSR":
         df = theory_tools.define_prefsr_vars(df, mode=mode)
@@ -47,11 +46,11 @@ def define_gen_level(df, gen_level, dataset_name, mode="wmass"):
         if mode in ["wmass", "wlike"]:
             df = df.Alias("mTVGen", "mTVgen")   
 
-        if mode == "wmass":
+        if "mw" in mode:
             df = df.Define("ptGen", "chargeVgen < 0 ? genl.pt() : genlanti.pt()")   
             df = df.Define("absEtaGen", "chargeVgen < 0 ? std::fabs(genl.eta()) : std::fabs(genlanti.eta())")
 
-        if mode in ["wlike", "dilepton"]:
+        if mz:
             df = df.Define("ptGen", "event % 2 == 0 ? genl.pt() : genlanti.pt()")
             df = df.Define("absEtaGen", "event % 2 == 0 ? std::fabs(genl.eta()) : std::fabs(genlanti.eta())")
             df = df.Define("ptOtherGen", "event % 2 == 0 ? genlanti.pt() : genl.pt()")
@@ -66,7 +65,7 @@ def define_gen_level(df, gen_level, dataset_name, mode="wmass"):
         if mode in ["wmass", "wlike"]:
             df = df.Alias("mTVGen", "postfsrMT")   
    
-        if mode in ["wlike", "dilepton"]:
+        if mz:
             df = df.Alias("ptOtherGen", "postfsrOtherLep_pt")
             df = df.Alias("absEtaOtherGen", f"postfsrOtherLep_absEta")                
 
@@ -75,31 +74,44 @@ def define_gen_level(df, gen_level, dataset_name, mode="wmass"):
 
         df = df.Alias("ptVGen", "postfsrPTV")      
 
-    if mode == "wlike":
+    if "wlike" in mode:
         df = df.Define("qGen", "event % 2 == 0 ? -1 : 1")
 
     return df
 
-def select_fiducial_space(df, select=True, accept=True, mode="wmass", pt_min=None, pt_max=None, mass_min=60, mass_max=120, mtw_min=0, selections=[]):
+def get_fiducial_args(mode, pt_min=28, pt_max=60, abseta_max=2.4):
+    fidargs = {}
+    if "inclusive" in mode or mode == "mz_masswindow":
+        fidargs = {"abseta_max" : 100.}
+        if mode == "mz_inclusive":
+            fidargs.update({"mass_min" : 60, "mass_max" : 120})
+        return fidargs
+
+    fidargs.update({"mtw_min" : 40 if "mw" in mode or "singlelep" in mode else 0,
+                    "pt_min" : pt_min, "pt_max" : pt_max, "abseta_max" : abseta_max})
+
+    return fidargs
+
+def select_fiducial_space(df, select=True, accept=True, mode="mw", pt_min=0, pt_max=1300, abseta_max=2.4, mass_min=60, mass_max=120, mtw_min=0, selections=[]):
     # Define a fiducial phase space and if select=True, either select events inside/outside
     # accept = True: select events in fiducial phase space 
     # accept = False: reject events in fiducial pahse space
     
-    if mode == "wmass":
-        selection = "(absEtaGen < 2.4)"        
-    elif mode == "wlike":
+    if "mw" in mode:
+        selection = f"(absEtaGen < {abseta_max})"        
+    elif "singlelep" in mode:
         selection = f"""
-            (absEtaGen < 2.4) && (absEtaOtherGen < 2.4) 
+            (absEtaGen < {abseta_max}) && (absEtaOtherGen < {abseta_max}) 
             && (ptOtherGen > {pt_min}) && (ptOtherGen < {pt_max})
             && (massVGen > {mass_min}) && (massVGen < {mass_max})
             """
-    elif mode == "dilepton":
+    elif "mz" in mode:
         selection = f"""
-            (absEtaGen < 2.4) && (absEtaOtherGen < 2.4) 
-            && (ptGen > {pt_min}) && (ptOtherGen > {pt_min}) 
-            && (ptGen < {pt_max}) && (ptOtherGen < {pt_max}) 
+            (absEtaGen < {abseta_max}) && (absEtaOtherGen < {abseta_max}) 
+            && (ptGen > {pt_min}) && (ptOtherGen > {pt_min})
+            && (ptGen < {pt_max}) && (ptOtherGen < {pt_max})
             && (massVGen > {mass_min}) && (massVGen < {mass_max})
-            """
+        """
     else:
         raise NotImplementedError(f"No fiducial phase space definiton found for mode '{mode}'!") 
 
@@ -109,6 +121,8 @@ def select_fiducial_space(df, select=True, accept=True, mode="wmass", pt_min=Non
     for sel in selections:
         logger.debug(f"Add selection {sel} for fiducial phase space")
         selection += f" && ({sel})"
+
+    logger.info(f"Applying fiducial selection {selection}")
 
     df = df.Define("acceptance", selection)
 

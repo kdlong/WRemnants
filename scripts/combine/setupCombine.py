@@ -87,8 +87,7 @@ def make_parser(parser=None):
     parser.add_argument("--resumUnc", default="tnp", type=str, choices=["scale", "tnp", "tnp_minnlo", "minnlo",  "none"], help="Include SCETlib uncertainties")
     parser.add_argument("--noTransitionUnc", action="store_true", help="Do not include matching transition parameter variations.")
     parser.add_argument("--npUnc", default="Delta_Lambda", type=str, choices=combine_theory_helper.TheoryHelper.valid_np_models, help="Nonperturbative uncertainty model")
-    parser.add_argument("--tnpMagnitude", default=1, type=float, help="Variation size for the TNP")
-    parser.add_argument("--scaleTNP", default=5, type=float, help="Scale the TNP uncertainties by this factor")
+    parser.add_argument("--scaleTNP", default=1, type=float, help="Scale the TNP uncertainties by this factor")
     parser.add_argument("--scalePdf", default=1, type=float, help="Scale the PDF hessian uncertainties by this factor")
     parser.add_argument("--pdfUncFromCorr", action='store_true', help="Take PDF uncertainty from correction hist (Requires having run that correction)")
     parser.add_argument("--massVariation", type=float, default=100, help="Variation of boson mass")
@@ -158,14 +157,22 @@ def setup(args, inputFile, fitvar, xnorm=False):
     if not xnorm and (args.axlim or args.rebin or args.absval):
         datagroups.set_rebin_action(fitvar, args.axlim, args.rebin, args.absval, args.rebinBeforeSelection, rename=False)
 
-    wmass = datagroups.mode in ["wmass", "lowpu_w"]
+    wmass = datagroups.mode in ["wmass", "lowpu_w"] 
     wlike = datagroups.mode == "wlike"
     lowPU = "lowpu" in datagroups.mode
     # Detect lowpu dilepton
     dilepton = "dilepton" in datagroups.mode or any(x in ["ptll", "mll"] for x in fitvar)
+    genfit = datagroups.mode == "vgen"
+
+    if genfit:
+        hasw = any("W" in x for x in args.filterProcGroups)
+        hasz = any("Z" in x for x in args.filterProcGroups)
+        if hasw and hasz:
+            raise ValueError("Only W or Z processes are permitted in the gen fit")
+        wmass = hasw
 
     simultaneousABCD = wmass and args.simultaneousABCD and not xnorm
-    constrainMass = args.forceConstrainMass or args.fitXsec or (dilepton and not "mll" in fitvar) 
+    constrainMass = args.forceConstrainMass or args.fitXsec or (dilepton and not "mll" in fitvar) or genfit
     logger.debug(f"constrainMass = {constrainMass}")
 
     if wmass:
@@ -303,8 +310,8 @@ def setup(args, inputFile, fitvar, xnorm=False):
     label = 'W' if wmass else 'Z'
     cardTool.setCustomSystGroupMapping({
         "theoryTNP" : f".*resum.*|.*TNP.*|mass.*{label}.*",
-        "resumTheory" : f".*resum.*|.*TNP.*|mass.*{label}.*",
-        "allTheory" : f"pdf.*|.*QCD.*|.*resum.*|.*TNP.*|mass.*{label}.*",
+        "resumTheory" : f".*scetlib.*|.*resum.*|.*TNP.*|mass.*{label}.*",
+        "allTheory" : f".*scetlib.*|pdf.*|.*QCD.*|.*resum.*|.*TNP.*|mass.*{label}.*",
         "ptTheory" : f".*QCD.*|.*resum.*|.*TNP.*|mass.*{label}.*",
     })
     cardTool.setCustomSystForCard(args.excludeNuisances, args.keepNuisances)
@@ -639,9 +646,8 @@ def setup(args, inputFile, fitvar, xnorm=False):
         transitionUnc = not args.noTransitionUnc,
         propagate_to_fakes=to_fakes,
         np_model=args.npUnc,
-        tnp_magnitude=args.tnpMagnitude,
         tnp_scale = args.scaleTNP,
-        mirror_tnp=True,
+        mirror_tnp=False,
         pdf_from_corr=args.pdfUncFromCorr,
         scale_pdf_unc=args.scalePdf,
         minnlo_unc=args.minnloScaleUnc,
@@ -657,7 +663,9 @@ def setup(args, inputFile, fitvar, xnorm=False):
 
     theory_helper.add_all_theory_unc(theorySystSamples, skipFromSignal=args.noPDFandQCDtheorySystOnSignal)
 
-    if xnorm or datagroups.mode == "vgen":
+    if xnorm or genfit:
+        if genfit:
+            cardTool.addLnNSystematic("lumi", processes=["signal_samples"], size=1.012, group="luminosity")
         return cardTool
 
     # Below: experimental uncertainties
@@ -1007,11 +1015,13 @@ if __name__ == "__main__":
             writer.set_fitresult(args.fitresult, mc_stat=not args.noMCStat)
 
         if len(outnames) == 1:
-            outfile, outfolder = outnames[0]
+            outfolder, outfile = outnames[0]
         else:
-            outfile, outfolder = f"{args.outfolder}/Combination{'_statOnly' if args.doStatOnly else ''}{'_'+args.postfix if args.postfix else ''}/", "Combination"
+            dir_append = '_'.join(['', *filter(lambda x: x, ['statOnly' if args.doStatOnly else '', args.postfix])])
+            outfolder = f"{args.outfolder}/Combination_{''.join([o[1] for o in outnames])}{dir_append}/"
+            outfile = "Combination"
         logger.info(f"Writing HDF5 output to {outfile}")
-        writer.write(args, outfile, outfolder)
+        writer.write(args, outfolder, outfile)
     else:
         if len(args.inputFile) > 1:
             raise IOError(f"Multiple input files only supported within --hdf5 mode")

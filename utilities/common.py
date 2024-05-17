@@ -454,3 +454,12 @@ def list_to_string(list_str):
             "list_to_string(): cannot convert an input that is"
             " neither a single string or a list of strings"
         )
+
+# From https://stackoverflow.com/questions/44542605/python-how-to-get-all-default-values-from-argparse
+def get_argparse_defaults(parser):
+    defaults = {}
+    for action in parser._actions:
+        if action.dest != "help":
+            defaults[action.dest] = action.default
+    return defaults
+

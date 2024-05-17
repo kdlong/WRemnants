@@ -38,7 +38,6 @@ def make_subparsers(parser):
 
     return parser
 
-
 def make_parser(parser=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--outfolder", type=str, default=".", help="Output folder with the root file storing all histograms and datacards for single charge (subfolder WMass or ZMassWLike is created automatically inside)")
@@ -132,6 +131,7 @@ def make_parser(parser=None):
 
 
 def setup(args, inputFile, fitvar, xnorm=False):
+    logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
 
     isUnfolding = args.analysisMode == "unfolding"
     isTheoryAgnostic = args.analysisMode in ["theoryAgnosticNormVar", "theoryAgnosticPolVar"]
@@ -960,7 +960,7 @@ def outputFolderName(outfolder, card_tool, doStatOnly, postfix):
 
     return f"{outfolder}/{'_'.join(to_join)}/"
 
-def main(args, xnorm=False):
+def run_root(args, xnorm=False):
     forceNonzero = False #args.analysisMode == None
     checkSysts = forceNonzero
 
@@ -970,10 +970,12 @@ def main(args, xnorm=False):
     cardTool.writeOutput(args=args, forceNonzero=forceNonzero, check_systs=checkSysts)
     return
 
-if __name__ == "__main__":
-    parser = make_parser()
-    args = parser.parse_args()
-    
+def run_script(args_dict):
+    base_dict = common.get_argparse_defaults(make_parser())
+    base_dict.update(args_dict)
+    main(argparse.Namespace(**base_dict))
+
+def main(args):
     logger = logging.setup_logger(__file__, args.verbose, args.noColorLogger)
     
     isUnfolding = args.analysisMode == "unfolding"
@@ -1030,10 +1032,14 @@ if __name__ == "__main__":
         if len(args.inputFile) > 1:
             raise IOError(f"Multiple input files only supported within --hdf5 mode")
 
-        main(args)
+        run_root(args)
         if isFloatingPOIs:
             logger.warning("Now running with xnorm = True")
             # in case of unfolding and hdf5, the xnorm histograms are directly written into the hdf5
-            main(args, xnorm=True)
+            run_root(args, xnorm=True)
 
     logging.summary()
+
+if __name__ == "__main__":
+    main(make_parser().parse_args())
+

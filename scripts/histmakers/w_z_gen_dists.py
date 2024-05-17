@@ -19,6 +19,7 @@ parser.add_argument("--skipAngularCoeffs", action='store_true', help="Skip the c
 parser.add_argument("--propagatePDFstoHelicity", action='store_true', help="Propagate PDF uncertainties to helicity moments")
 parser.add_argument("--useTheoryAgnosticBinning", action='store_true', help="Use theory agnostic binning (coarser) to produce the gen results")
 parser.add_argument("--singleLeptonHists", action='store_true', help="Also store single lepton kinematics")
+parser.add_argument("--singleLepNominal", action='store_true', help="Make single lepton axes nominal")
 parser.add_argument("--photonHists", action='store_true', help="Also store photon kinematics")
 parser.add_argument("--skipEWHists", action='store_true', help="Also store histograms for EW reweighting. Use with --filter horace")
 parser.add_argument("--signedY", action='store_true', help="use signed Y")
@@ -131,6 +132,10 @@ def build_graph(df, dataset):
         lep_axes = [axis_absetal_gen, axis_ptl_gen, axis_chargeWgen]
     nominal_cols = ["massVgen", col_rapidity, "ptqVgen" if args.ptqVgen else "ptVgen", "chargeVgen"]
     lep_cols = ["absEtaGen", "ptGen", "chargeVgen"]
+
+    if args.singleLepNominal:
+        nominal_cols = lep_cols[:]
+        nominal_axes = lep_axes[:]
 
     mode = f'{"z" if isZ else "w"}_{analysis_label}'
     if args.fiducial is not None:

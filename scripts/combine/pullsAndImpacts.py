@@ -9,7 +9,7 @@ from dash import dcc
 import dash_daq as daq
 from dash import html
 from dash.dependencies import Input, Output
-from utilities import logging
+from utilities import logging,common
 from utilities.io_tools import input_tools, output_tools, combinetf_input
 from wremnants import plot_tools
 import os
@@ -66,7 +66,7 @@ def get_marker(filled=True, color='#377eb8', opacity=1.0):
         }
     return marker
 
-def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpacts=False):
+def plotImpacts(df, args, impact_title="", pulls=False, oneSidedImpacts=False):
     impacts = bool(np.count_nonzero(df['absimpact'])) and not args.noImpacts
     ncols = pulls+impacts
     fig = make_subplots(rows=1,cols=ncols,
@@ -83,7 +83,7 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
     )
 
     include_ref = "impact_ref" in df.keys() or "constraint_ref" in df.keys()
-    impact_str = 'impact' if not oneSidedImpacts else 'absimpact'
+    impact_str = 'impact' if not args.oneSidedImpacts else 'absimpact'
 
     if impacts and include_ref:
         # append numerical values of impacts on nuisance name; fill up empty room with spaces to align numbers
@@ -114,7 +114,7 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
                 y=labels,
                 width=0.2 if include_ref else None,
                 orientation='h',
-                **get_marker(filled=True, color=df['impact_color'] if oneSidedImpacts else '#377eb8'),
+                **get_marker(filled=True, color=df['impact_color'] if args.oneSidedImpacts else '#377eb8'),
                 **textargs,
                 name="impacts_down",
             ),
@@ -127,11 +127,11 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
                     x=df[f'{impact_str}_ref'],
                     y=labels,
                     orientation='h',
-                    **get_marker(filled=True, color=df['impact_color'] if oneSidedImpacts else '#377eb8', opacity=0.5),
+                    **get_marker(filled=True, color=df['impact_color'] if args.oneSidedImpacts else '#377eb8', opacity=0.5),
                 ),
                 row=1,col=1,
             )
-        if not oneSidedImpacts:
+        if not args.oneSidedImpacts:
             fig.add_trace(
                 go.Bar(
                     x=-1*df['impact'],
@@ -160,11 +160,11 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
         if impact_range % impact_spacing:
             impact_range += impact_spacing - (impact_range % impact_spacing)
         tick_spacing = impact_range/impact_spacing
-        if pulls and oneSidedImpacts:
+        if pulls and args.oneSidedImpacts:
             tick_spacing /= 2.
         fig.update_layout(barmode='overlay')
         fig.update_layout(
-            xaxis=dict(range=[-impact_range*1.1 if not oneSidedImpacts else -impact_range/20, impact_range*1.1],
+            xaxis=dict(range=[-impact_range*1.1 if not args.oneSidedImpacts else -impact_range/20, impact_range*1.1],
                     showgrid=True, gridwidth=1, gridcolor='Gray', griddash='dash',
                     zeroline=True, zerolinewidth=2, zerolinecolor='Gray',
                     tickmode='linear',
@@ -230,7 +230,8 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
             )
         max_pull = np.max(df["abspull"])
         # Round up to nearest 0.25, add 1.1 for display
-        pullrange = .5*np.ceil(max_pull/0.5)+1.1
+        #pullrange = .5*np.ceil(max_pull/0.5)+1.1
+        pullrange = 2.
         # Keep it a factor of 0.25, but no bigger than 1
         spacing = min(1, np.ceil(pullrange)/4.)
         xaxis_title = r'$\Theta - \Theta_0 \ \color{blue}{(\Theta - \Theta_0) / \sqrt{\sigma^2 -\sigma_0^2}}$' if args.diffPullAsym else r'$\Theta - \Theta_0$'
@@ -256,21 +257,26 @@ def plotImpacts(df, impact_title="", pulls=False, normalize=False, oneSidedImpac
 
     return fig
 
-def readFitInfoFromFile(rf, filename, poi, group=False, stat=0.0, normalize=False, scale=1):    
+def readFitInfoFromFile(rf, filename, poi, group=False, filters=None, translate=None, stat=0.0, normalize=False, scale=1):    
     impacts, labels, _ = combinetf_input.read_impacts_poi(rf, group, add_total=group, stat=stat, poi=poi, normalize=normalize)
     
-    if (group and grouping) or args.filters:
+    if (group and grouping) or filters:
         filtimpacts = []
         filtlabels = []
         for impact,label in zip(impacts,labels):
             if group and grouping and label not in grouping:
                 continue
-            if args.filters and not any(re.match(f, label) for f in args.filters):
+            if filters and not any(re.match(f, label) for f in filters):
                 continue
             filtimpacts.append(impact)
             filtlabels.append(label)
         impacts = filtimpacts
         labels = filtlabels
+
+    translate_label = {}
+    if translate:
+        with open(translate) as f:
+            translate_label = json.load(f)
 
     df = pd.DataFrame(np.array(impacts, dtype=np.float64).T*scale, columns=["impact"])
     df['label'] = [translate_label.get(l, l) for l in labels]
@@ -290,7 +296,7 @@ def readFitInfoFromFile(rf, filename, poi, group=False, stat=0.0, normalize=Fals
 
     return df
 
-def parseArgs():
+def make_parser():
     sort_choices = ["label", "abspull", "constraint", "absimpact"]
     sort_choices += [
         *[f"{c}_diff" for c in sort_choices],  # possibility to sort based on largest difference between inputfile and referencefile
@@ -318,11 +324,11 @@ def parseArgs():
     output.add_argument("-o", "--outputFile", default="test.html", type=str, help="Output file (extension specifies if html or pdf/png)")
     output.add_argument("--outFolder", type=str, default="", help="Output folder (created if it doesn't exist)")
     output.add_argument("--otherExtensions", default=[], type=str, nargs="*", help="Additional output file types to write")
-    output.add_argument("-n", "--num", type=int, help="Number of nuisances to plot")
+    output.add_argument("-n", "--num", default=0, type=int, help="Number of nuisances to plot")
     output.add_argument("--noPulls", action='store_true', help="Don't show pulls (not defined for groups)")
     output.add_argument("--eoscp", action='store_true', help="Use of xrdcp for eos output rather than the mount")
     
-    return parser.parse_args()
+    return parser
 
 app = dash.Dash(__name__)
 
@@ -360,12 +366,12 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
         impact_title=poi
 
     if not (group and args.output_mode == 'output'):
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, stat=args.stat/100., normalize=normalize, scale=scale)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, filters=args.filters, translate=args.translate, stat=args.stat/100., normalize=normalize, scale=scale)
     elif group:
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, stat=args.stat/100., normalize=normalize, scale=scale)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale)
 
     if fitresult_ref:
-        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, stat=args.stat/100., normalize=normalize, scale=scale)
+        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale)
         df = df.merge(df_ref, how="left", on="label", suffixes=("","_ref"))
     
     if group and fitresult_ref and set(fitresult_ref["hsysts"]) != set(fitresult["hsysts"]):
@@ -457,32 +463,30 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
         if args.num and args.num < df.size:
             # in case multiple extensions are given including html, don't do the skimming on html but all other formats
             if "html" in extensions and len(extensions)>1:
-                fig = plotImpacts(df, pulls=not args.noPulls and not group, impact_title=impact_title, normalize=not args.absolute, oneSidedImpacts=args.oneSidedImpacts)
+                fig = plotImpacts(df, args, pulls=not args.noPulls and not group, impact_title=impact_title)
                 outfile_html = outfile.replace(outfile.split(".")[-1], "html")
                 writeOutput(fig, outfile_html, postfix=postfix)
                 extensions = [e for e in extensions if e != "html"]
                 outfile = outfile.replace(outfile.split(".")[-1], extensions[0])
             df = df[-args.num:]
 
-        fig = plotImpacts(df, pulls=not args.noPulls and not group, impact_title=impact_title, normalize=not args.absolute, oneSidedImpacts=args.oneSidedImpacts)
+        fig = plotImpacts(df, args, pulls=not args.noPulls and not group, impact_title=impact_title)
         writeOutput(fig, outfile, extensions[0:], postfix=postfix, args=args, meta_info=meta)      
         if args.eoscp and output_tools.is_eosuser_path(args.outFolder):
             output_tools.copy_to_eos(args.outFolder, "")
     else:
         raise ValueError("Must select mode 'interactive' or 'output'")
 
+def run_script(args_dict):
+    base_dict = common.get_argparse_defaults(make_parser())
+    base_dict.update(args_dict)
+    main(argparse.Namespace(**base_dict))
 
-if __name__ == '__main__':
-    args = parseArgs()
-
+def main(args):
+    global logger
     logger = logging.setup_logger("pullsAndImpacts", 4 if args.debug else 3)
 
     grouping = groupings[args.grouping] if args.grouping else None
-
-    translate_label = {}
-    if args.translate:
-        with open(args.translate) as f:
-            translate_label = json.load(f)
 
     fitresult = combinetf_input.get_fitresult(args.inputFile)
     fitresult_ref = combinetf_input.get_fitresult(args.referenceFile) if args.referenceFile else None
@@ -490,7 +494,7 @@ if __name__ == '__main__':
     if args.noImpacts:
         # do one pulls plot, ungrouped
         producePlots(fitresult, args, None, fitresult_ref=fitresult_ref)
-        exit()
+        return
 
     pois = combinetf_input.get_poi_names(fitresult, poi_type=None)
     for poi in pois:
@@ -498,3 +502,6 @@ if __name__ == '__main__':
             producePlots(fitresult, args, poi, fitresult_ref=fitresult_ref)
         if args.mode in ["both", "group"]:
             producePlots(fitresult, args, poi, group=True, fitresult_ref=fitresult_ref)
+
+if __name__ == '__main__':
+    main(make_parser().parse_args())

@@ -363,15 +363,37 @@ def define_mass_weights(df, proc):
     if "massWeight_tensor" in df.GetColumnNames():
         logger.debug("massWeight_tensor already defined, do nothing here.")
         return df
-    nweights = 23 if proc in common.zprocs_all else 21
+
+    # TODO can these be parsed more automatically?
+    if proc in common.zprocs_all:
+        m0 = 91.1876
+        gamma0 = 2.4941343245745466
+        massvals = [91.0876, 91.0976, 91.1076, 91.1176, 91.1276, 91.1376, 91.1476, 91.1576, 91.1676, 91.1776, 91.1876, 91.1976, 91.2076, 91.2176, 91.2276, 91.2376, 91.2476, 91.2576, 91.2676, 91.2776, 91.2876, 91.1855, 91.1897]
+        widthvals = [2.49333, 2.49493, 2.4929, 2.4952, 2.4975]
+    else:
+        m0 = 80.379
+        gamma0 = 2.0911383956149385
+        massvals = [80.279, 80.289, 80.299, 80.309, 80.319, 80.329, 80.339, 80.349, 80.359, 80.369, 80.379, 80.389, 80.399, 80.409, 80.419, 80.429, 80.439, 80.449, 80.459, 80.469, 80.479]
+        widthvals = [2.09053, 2.09173, 2.043, 2.085, 2.127]
+
+    nweights = len(massvals)
+
     # from -100 to 100 MeV with 10 MeV increment
     df = df.Define("massWeight_tensor", f"wrem::vec_to_tensor_t<double, {nweights}>(MEParamWeight)")
     df = df.Define("massWeight_tensor_wnom", "auto res = massWeight_tensor; res = nominal_weight*res; return res;")
+
+    # compute modified weights which remove the width variation from the mass weights by using the width weights to compensate
+    # TODO we should pass this in from outside so that we can re-use it, but it's lightweight enough that it shouldn't matter much
+    helper_mass = ROOT.wrem.MassWeightHelper[nweights](m0, gamma0, massvals, widthvals)
+
+    df = df.Define("massWeight_widthdecor_tensor", helper_mass, ["MEParamWeight", "MEParamWeightAltSet1"])
+    df = df.Define("massWeight_widthdecor_tensor_wnom", "auto res = massWeight_widthdecor_tensor; res = nominal_weight*res; return res;")
 
     return df
 
 def add_massweights_hist(results, df, axes, cols, base_name="nominal", proc="", addhelicity=False, storage_type=hist.storage.Double()):
     name = Datagroups.histName(base_name, syst="massWeight"+(proc[0] if len(proc) else proc))
+    name_widthdecor = Datagroups.histName(base_name, syst="massWeight_widthdecor"+(proc[0] if len(proc) else proc))
     mass_axis = hist.axis.StrCategory(massWeightNames(proc=proc), name="massShift")
     if addhelicity:
         massweightHelicity, massWeight_axes = make_massweight_helper_helicity(mass_axis)
@@ -379,11 +401,24 @@ def add_massweights_hist(results, df, axes, cols, base_name="nominal", proc="", 
         massWeight = df.HistoBoost(name, axes, [*cols, "massWeight_tensor_wnom_helicity"],
                                    tensor_axes=massWeight_axes,
                                    storage=storage_type)
+
+        df = df.Define("massWeight_widthdecor_tensor_wnom_helicity", massweightHelicity, ['massWeight_widthdecor_tensor_wnom', 'helWeight_tensor'])
+        massWeight_widthdecor = df.HistoBoost(name_widthdecor, axes, [*cols, "massWeight_widthdecor_tensor_wnom_helicity"],
+                                   tensor_axes=massWeight_axes,
+                                   storage=storage_type)
+
+
     else:
         massWeight = df.HistoBoost(name, axes, [*cols, "massWeight_tensor_wnom"], 
                                    tensor_axes=[mass_axis], 
                                    storage=storage_type)
+
+        massWeight_widthdecor = df.HistoBoost(name_widthdecor, axes, [*cols, "massWeight_widthdecor_tensor_wnom"],
+                                   tensor_axes=[mass_axis],
+                                   storage=storage_type)
+
     results.append(massWeight)
+    results.append(massWeight_widthdecor)
 
 def massWeightNames(matches=None, proc="", exclude=[]):
     if isinstance(exclude, (int, float)):
@@ -531,7 +566,7 @@ def add_scaledByCondition_unc_hists(results, df, args, axes, cols, newWeightName
     return df
 
 def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, cols, base_name="nominal", what_analysis=ROOT.wrem.AnalysisType.Wmass, smooth3D=False, addhelicity=False, storage_type=hist.storage.Double()):
-    # TODO: update for dilepton
+
     if what_analysis == ROOT.wrem.AnalysisType.Wmass:
         muon_columns_stat = ["goodMuons_pt0", "goodMuons_eta0",
                              "goodMuons_uT0", "goodMuons_charge0"]
@@ -540,14 +575,15 @@ def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, c
                              "goodMuons_uT0", "goodMuons_charge0",
                              "passIso"]
     else:
-        muvars_stat = ["pt0", "eta0", "uT0", "charge0"]
+        muvars_stat = ["pt0", "eta0", "uT0", "charge0"] # passIso0 required only for iso stat variations, added later
         muon_columns_stat_trig    = [f"trigMuons_{v}" for v in muvars_stat]
         muon_columns_stat_nonTrig = [f"nonTrigMuons_{v}" for v in muvars_stat]
 
-        muvars_syst = ["pt0", "eta0", "SApt0", "SAeta0", "uT0", "charge0"]
+        muvars_syst = ["pt0", "eta0", "SApt0", "SAeta0", "uT0", "charge0", "passIso0"]
         muon_columns_syst_trig    = [f"trigMuons_{v}" for v in muvars_syst]
         muon_columns_syst_nonTrig = [f"nonTrigMuons_{v}" for v in muvars_syst]
-        
+
+        # muon_columns_stat in the following does not include passIso yet, added later for iso helper
         if what_analysis == ROOT.wrem.AnalysisType.Wlike:
             muon_columns_stat = [*muon_columns_stat_trig, *muon_columns_stat_nonTrig]
             muon_columns_syst = [*muon_columns_syst_trig, *muon_columns_syst_nonTrig]
@@ -568,8 +604,16 @@ def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, c
     for key,helper in helper_stat.items():
         if "tracking" in key:
             muon_columns_stat_step = muon_columns_stat_tracking
-        elif "iso" in key and what_analysis == ROOT.wrem.AnalysisType.Wmass:
-            muon_columns_stat_step = muon_columns_stat + ["passIso"]
+        elif "iso" in key:
+            if what_analysis == ROOT.wrem.AnalysisType.Wmass:
+                 # iso variable called passIso rather than goodMuons_passIso0 in W histmaker
+                muon_columns_stat_step = [*muon_columns_stat, "passIso"]
+            elif what_analysis == ROOT.wrem.AnalysisType.Wlike:
+                muon_columns_stat_step = [*muon_columns_stat_trig, "trigMuons_passIso0",
+                                          *muon_columns_stat_nonTrig, "nonTrigMuons_passIso0"]
+            elif what_analysis == ROOT.wrem.AnalysisType.Dilepton:
+                muon_columns_stat_step = [*muon_columns_stat_trig, "trigMuons_passIso0", "trigMuons_passTrigger0",
+                                          *muon_columns_stat_nonTrig, "nonTrigMuons_passIso0", "nonTrigMuons_passTrigger0"]
         else:
             muon_columns_stat_step = muon_columns_stat
             
@@ -591,6 +635,47 @@ def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, c
         effSystTnP = df.HistoBoost(name, axes, [*cols, "effSystTnP_weight_ByHelicity_tensor"], tensor_axes = helper_syst_helicity_axes, storage=storage_type)
     else:
         effSystTnP = df.HistoBoost(name, axes, [*cols, "effSystTnP_weight"], tensor_axes = helper_syst.tensor_axes, storage=storage_type)
+    results.append(effSystTnP)
+    
+    return df
+
+def add_muon_efficiency_unc_hists_altBkg(results, df, helper_syst, axes, cols, base_name="nominal", what_analysis=ROOT.wrem.AnalysisType.Wmass, step="tracking", storage_type=hist.storage.Double()):
+
+    SAvarTag = "SA" if step == "tracking" else "" 
+    if what_analysis == ROOT.wrem.AnalysisType.Wmass:
+        muon_columns_syst = [f"goodMuons_{SAvarTag}pt0", f"goodMuons_{SAvarTag}eta0", "goodMuons_charge0"]
+    else:
+        muvars_syst = [f"{SAvarTag}pt0", f"{SAvarTag}eta0", "charge0"]
+        muon_columns_syst_trig    = [f"trigMuons_{v}" for v in muvars_syst]
+        muon_columns_syst_nonTrig = [f"nonTrigMuons_{v}" for v in muvars_syst]
+        
+        if what_analysis == ROOT.wrem.AnalysisType.Wlike:
+            muon_columns_syst = [*muon_columns_syst_trig, *muon_columns_syst_nonTrig]
+        elif what_analysis == ROOT.wrem.AnalysisType.Dilepton:
+            muon_columns_syst = [*muon_columns_syst_trig, "trigMuons_passTrigger0", *muon_columns_syst_nonTrig, "nonTrigMuons_passTrigger0"]
+        else:
+            raise NotImplementedError(f"add_muon_efficiency_unc_hists_altBkg: analysis {what_analysis} not implemented.")            
+    
+    df = df.Define(f"effSystTnP_altBkg_{step}_weight", helper_syst, [*muon_columns_syst, "nominal_weight"])
+    name = Datagroups.histName(base_name, syst=f"effSystTnP_altBkg_{step}")
+    effSystTnP = df.HistoBoost(name, axes, [*cols, f"effSystTnP_altBkg_{step}_weight"], tensor_axes = helper_syst.tensor_axes, storage=storage_type)
+    results.append(effSystTnP)
+
+    return df
+
+def add_muon_efficiency_veto_unc_hists(results, df, helper_stat, helper_syst, axes, cols, base_name="nominal", storage_type=hist.storage.Double()):
+    # TODO: update for dilepton
+    muon_columns_stat = ["unmatched_postfsrMuon_pt","unmatched_postfsrMuon_eta","unmatched_postfsrMuon_charge"]
+    muon_columns_syst = ["unmatched_postfsrMuon_pt","unmatched_postfsrMuon_eta","unmatched_postfsrMuon_charge"]
+            
+    df = df.Define("effStatTnP_veto_tensor", helper_stat, [*muon_columns_stat, "nominal_weight"])
+    name = Datagroups.histName(base_name, syst="effStatTnP_veto_sf")
+    effStatTnP = df.HistoBoost(name, axes, [*cols, "effStatTnP_veto_tensor"], tensor_axes = helper_stat.tensor_axes, storage=storage_type)
+    results.append(effStatTnP)
+    
+    df = df.Define("effSystTnP_veto_weight", helper_syst, [*muon_columns_syst, "nominal_weight"])
+    name = Datagroups.histName(base_name, syst="effSystTnP_veto")
+    effSystTnP = df.HistoBoost(name, axes, [*cols, "effSystTnP_veto_weight"], tensor_axes = helper_syst.tensor_axes, storage=storage_type)
     results.append(effSystTnP)
     
     return df

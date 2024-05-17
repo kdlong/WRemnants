@@ -763,14 +763,16 @@ class CardTool(object):
         hTruth = gTruth.histselector.get_hist(gTruth.hists["syst"])
 
         # now load the nominal histograms
-        self.datagroups.loadHistsForDatagroups(
-            baseName=self.nominalName, syst=self.nominalName,
-            procsToRead=self.datagroups.groups.keys(),
-            label=self.nominalName, 
-            scaleToNewLumi=self.lumiScale,
-            lumiScaleVarianceLinearly=self.lumiScaleVarianceLinearly,
-            forceNonzero=forceNonzero,
-            sumFakesPartial=not self.simultaneousABCD)
+        # only load nominal histograms that are not already loaded
+        processesFromNomiToLoad = [proc for proc in self.datagroups.groups.keys() if self.nominalName not in procDictFromNomi[proc].hists]
+        if len(processesFromNomiToLoad):
+            self.datagroups.loadHistsForDatagroups(
+                baseName=self.nominalName, syst=self.nominalName,
+                procsToRead=processesFromNomiToLoad,
+                scaleToNewLumi=self.lumiScale,
+                lumiScaleVarianceLinearly=self.lumiScaleVarianceLinearly,
+                forceNonzero=forceNonzero,
+                sumFakesPartial=not self.simultaneousABCD)
         procDictFromNomi = self.datagroups.getDatagroups()
 
         if "QCD" not in procDict:
@@ -843,18 +845,20 @@ class CardTool(object):
             # now add possible processes from nominal
             logger.warning(f"Making pseudodata summing these processes: {processes}")
             if len(processesFromNomi):
+                # only load nominal histograms that are not already loaded
+                processesFromNomiToLoad = [proc for proc in processesFromNomi if self.nominalName not in procDictFromNomi[proc].hists]
                 logger.warning(f"These processes are taken from nominal datagroups: {processesFromNomi}")
                 datagroupsFromNomi = self.datagroups
-                datagroupsFromNomi.loadHistsForDatagroups(
-                    baseName=self.nominalName, syst=self.nominalName,
-                    procsToRead=processesFromNomi, 
-                    label=pseudoData,
-                    scaleToNewLumi=self.lumiScale,
-                    lumiScaleVarianceLinearly=self.lumiScaleVarianceLinearly,
-                    forceNonzero=forceNonzero,
-                    sumFakesPartial=not self.simultaneousABCD)
+                if len(processesFromNomiToLoad):
+                    datagroupsFromNomi.loadHistsForDatagroups(
+                        baseName=self.nominalName, syst=self.nominalName,
+                        procsToRead=processesFromNomiToLoad, 
+                        scaleToNewLumi=self.lumiScale,
+                        lumiScaleVarianceLinearly=self.lumiScaleVarianceLinearly,
+                        forceNonzero=forceNonzero,
+                        sumFakesPartial=not self.simultaneousABCD)
                 procDictFromNomi = datagroupsFromNomi.getDatagroups()
-                hists.extend([procDictFromNomi[proc].hists[pseudoData] for proc in processesFromNomi])
+                hists.extend([procDictFromNomi[proc].hists[self.nominalName] for proc in processesFromNomi])
             # done, now sum all histograms
             hdata = hh.sumHists(hists)
             if self.pseudoDataAxes[idx] is None:
@@ -931,7 +935,7 @@ class CardTool(object):
         self.writeForProcesses(self.nominalName, processes=self.datagroups.groups.keys(), label=self.nominalName, check_systs=check_systs)
         self.loadNominalCard()
 
-        if not self.real_data and not self.xnorm:
+        if not self.pseudoData and not self.real_data and not self.xnorm:
             # If real data is not explicitly requested, use pseudodata instead (but still store read data in root writer)
             self.setPseudodata([self.nominalName])
         if self.pseudoData and not self.xnorm:
@@ -939,10 +943,13 @@ class CardTool(object):
 
         self.writeLnNSystematics()
         for syst in self.systematics.keys():
-            if self.isExcludedNuisance(syst): continue
+            if self.isExcludedNuisance(syst): 
+                continue
             systMap = self.systematics[syst]
             systName = syst if not systMap["name"] else systMap["name"]
             processes = systMap["processes"]
+            if len(processes) == 0:
+                continue
             # Needed to avoid always reading the variation for the fakes, even for procs not specified
             forceToNominal=[x for x in self.datagroups.getProcNames() if x not in 
                 self.datagroups.getProcNames([p for g in processes for p in self.expandProcesses(g) if p != self.getFakeName()])]

@@ -257,7 +257,7 @@ def plotImpacts(df, args, impact_title="", pulls=False, oneSidedImpacts=False):
 
     return fig
 
-def readFitInfoFromFile(rf, filename, poi, group=False, filters=None, translate=None, stat=0.0, normalize=False, scale=1):    
+def readFitInfoFromFile(rf, filename, poi, group=False, filters=None, translate=None, stat=0.0, normalize=False, scale=1, grouping=None):    
     impacts, labels, _ = combinetf_input.read_impacts_poi(rf, group, add_total=group, stat=stat, poi=poi, normalize=normalize)
     
     if (group and grouping) or filters:
@@ -365,13 +365,15 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
     else:
         impact_title=poi
 
+    grouping = groupings[args.grouping] if args.grouping else None
+
     if not (group and args.output_mode == 'output'):
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, filters=args.filters, translate=args.translate, stat=args.stat/100., normalize=normalize, scale=scale)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, filters=args.filters, translate=args.translate, stat=args.stat/100., normalize=normalize, scale=scale, grouping=grouping)
     elif group:
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale, grouping=grouping)
 
     if fitresult_ref:
-        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale)
+        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, filters=args.filters, stat=args.stat/100., translate=args.translate, normalize=normalize, scale=scale, grouping=grouping)
         df = df.merge(df_ref, how="left", on="label", suffixes=("","_ref"))
     
     if group and fitresult_ref and set(fitresult_ref["hsysts"]) != set(fitresult["hsysts"]):
@@ -485,8 +487,6 @@ def run_script(args_dict):
 def main(args):
     global logger
     logger = logging.setup_logger("pullsAndImpacts", 4 if args.debug else 3)
-
-    grouping = groupings[args.grouping] if args.grouping else None
 
     fitresult = combinetf_input.get_fitresult(args.inputFile)
     fitresult_ref = combinetf_input.get_fitresult(args.referenceFile) if args.referenceFile else None

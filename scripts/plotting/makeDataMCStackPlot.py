@@ -174,7 +174,8 @@ def main(args):
         if any(x in h.split("-") for x in ["ptll", "mll", "ptVgen", "ptVGen"]):
             # in case of variable bin width normalize to unit
             binwnorm = 1.0
-            ylabel="Events/unit"
+            #ylabel="Events/unit"
+            ylabel="Events/GeV"
         else:
             binwnorm = None
             ylabel="Events/bin"
@@ -190,7 +191,8 @@ def main(args):
                 action=action, unstacked=unstack, 
                 fitresult=args.fitresult, prefit=args.prefit,
                 xlabel=xlabel, ylabel=ylabel, rrange=args.rrange, binwnorm=binwnorm, lumi=groups.lumi,
-                ratio_to_data=args.ratioToData, rlabel="Pred./Data" if args.ratioToData else "Data/Pred.",
+                #ratio_to_data=args.ratioToData, rlabel="Pred./Data" if args.ratioToData else "Data/Pred.",
+                ratio_to_data=args.ratioToData, rlabel="Pred./Data" if args.ratioToData else "Data/Prefit",
                 xlim=args.axlim, no_fill=args.noFill, no_stack=args.noStack, no_ratio=args.noRatio, density=args.density, flow=args.flow,
                 cms_decor=args.cmsDecor, legtext_size=20*args.scaleleg, unstacked_linestyles=args.linestyle if hasattr(args, "linestyle") else [],
                 ratio_error=args.ratioError, normalize_to_data=args.normToData)

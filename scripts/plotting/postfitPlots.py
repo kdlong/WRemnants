@@ -95,7 +95,8 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
     axis_name = "_".join([a for a in axes_names])
     xlabel=f"{'-'.join([styles.xlabels.get(s,s).replace('(GeV)','') for s in axes_names])} bin"
     if ratio:
-        fig, ax1, ax2 = plot_tools.figureWithRatio(h_data, xlabel, ylabel, args.ylim, "Data/Pred.", args.rrange)
+        #fig, ax1, ax2 = plot_tools.figureWithRatio(h_data, xlabel, ylabel, args.ylim, "Data/Pred.", args.rrange)
+        fig, ax1, ax2 = plot_tools.figureWithRatio(h_data, xlabel, ylabel, args.ylim, "Data/Postfit", args.rrange)
     else:
         fig, ax1 = plot_tools.figure(h_data, xlabel, ylabel, args.ylim)
 
@@ -195,7 +196,7 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
     hep.cms.label(ax=ax1, lumi=float(f"{lumi:.3g}") if lumi is not None else None, fontsize=20*args.scaleleg*scale, 
         label=args.cmsDecor, data=data)
 
-    plot_tools.addLegend(ax1, ncols=len(h_stack)//3, text_size=20*args.scaleleg*scale)
+    plot_tools.addLegend(ax1, ncols=len(h_stack)//2, text_size=20*args.scaleleg*scale)
     plot_tools.fix_axes(ax1, ax2, yscale=args.yscale)
 
     to_join = [fittype, args.postfix, axis_name, suffix]
@@ -219,6 +220,15 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
             "Unstacked processes" : pd.DataFrame([(k, sum(h.values()), sum(h.variances())**0.5) for k,h in zip(["Data", "Inclusive"], [h_data, h_inclusive])], columns=["Process", "Yield", "Uncertainty"])},
         args=args, **kwargs
     )
+
+def rebin_axes(axes, axlim):
+    nv = len(axlim)
+    if nv % 2:
+        raise ValueError("if --axlim is specified it must have two values per axis!")
+    axlim = np.array(axlim).reshape((int(nv/2), 2))
+    print(axlim)
+    return [ax if lim is not None else hist.axis.Variable(ax.edges[(ax.edges >= lim[0]) & (ax.edges <= lim[1])]) 
+                for ax,lim in itertools.zip_longest(axes, axlim)]
 
 def make_plots(hist_data, hist_inclusive, hist_stack, axes, channel="", *opts, **kwopts):
     # make plots in slices (e.g. for charge plus an minus separately)
@@ -269,31 +279,35 @@ else:
         meta = ioutils.pickle_load_h5py(fitresult_h5py["meta"])
         ch_start=0
         for channel, info in meta["channel_info"].items():
-            shape = [len(a) for a in info["axes"]]
+            axes = info["axes"]
+            if args.axlim:
+                axes = rebin_axes(axes, args.axlim)
+            print(axes)
+            shape = [len(a) for a in axes]
 
             ch_end = ch_start+np.product(shape) # in combinetf1 the channels are concatenated and we need to index one after the other
 
             hist_data = fitresult["obs;1"].to_hist()
             values = np.reshape(hist_data.values()[ch_start:ch_end], shape)
-            hist_data = hist.Hist(*info["axes"], storage=hist.storage.Weight(), data=np.stack((values, values), axis=-1))  
+            hist_data = hist.Hist(*axes, storage=hist.storage.Weight(), data=np.stack((values, values), axis=-1))  
 
             # last bin can be masked channel; slice with [:nBins]
             hist_inclusive = fitresult[f"expfull_{fittype};1"].to_hist()
-            hist_inclusive = hist.Hist(*info["axes"], storage=hist.storage.Weight(), 
+            hist_inclusive = hist.Hist(*axes, storage=hist.storage.Weight(), 
                 data=np.stack((np.reshape(hist_inclusive.values()[ch_start:ch_end], shape), np.reshape(hist_inclusive.variances()[ch_start:ch_end], shape)), axis=-1))  
             hist_stack = [fitresult[f"expproc_{p}_{fittype};1"].to_hist() for p in procs]
-            hist_stack = [hist.Hist(*info["axes"], storage=hist.storage.Weight(), 
+            hist_stack = [hist.Hist(*axes, storage=hist.storage.Weight(), 
                 data=np.stack((np.reshape(h.values()[ch_start:ch_end], shape), np.reshape(h.variances()[ch_start:ch_end], shape)), axis=-1)) for h in hist_stack]
 
             if not args.prefit:
                 rfile = ROOT.TFile.Open(args.infile.replace(".hdf5",".root"))
                 ttree = rfile.Get("fitresults")
                 ttree.GetEntry(0)
-                chi2 = [2*(ttree.nllvalfull - ttree.satnllvalfull), np.product([len(a) for a in info["axes"]]) - ttree.ndofpartial]
+                chi2 = [2*(ttree.nllvalfull - ttree.satnllvalfull), np.product(shape) - ttree.ndofpartial]
             else:
                 chi2 = None
 
-            make_plots(hist_data, hist_inclusive, hist_stack, info["axes"], channel=channel, colors=colors, labels=labels, chi2=chi2, meta=meta, saturated_chi2=True, lumi=info["lumi"])
+            make_plots(hist_data, hist_inclusive, hist_stack, axes, channel=channel, colors=colors, labels=labels, chi2=chi2, meta=meta, saturated_chi2=True, lumi=info["lumi"])
             ch_start = ch_end
     else:
         # the fit was probably done on a file generated via the root writer and we can't use the axes information
@@ -337,12 +351,7 @@ else:
 
         axes = [all_axes[part] for part in filename_parts[-2].split("_") if part in all_axes.keys()]
         if args.axlim:
-            nv = len(args.axlim)
-            if nv % 2:
-                raise ValueError("if --axlim is specified it must have two values per axis!")
-            axlim = np.array(args.axlim).reshape((int(nv/2), 2))
-            axes = [ax if lim is not None else hist.axis.Variable(ax.edges[(ax.edges >= lim[0]) & (ax.edges <= lim[1])]) 
-                        for ax,lim in itertools.zip_longest(axes, axlim)]
+            axes = rebin_axes(axes, args.axlim)
         shape = [len(a) for a in axes]
 
         hist_data = fitresult["obs;1"].to_hist()

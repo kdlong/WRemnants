@@ -153,7 +153,7 @@ def copy_to_eos(outpath, outfolder=None, tmpFolder="temp", deleteFullTmp=False):
             # remove last folder to do "xrdcp -fr /path/to/folder/ root://eosuser.cern.ch//eos/cms/path/to/"
             # in this way one can copy the whole subfolder through xrdcp without first creating the structure
             outPathForCopy = os.path.dirname(outPathForCopy.rstrip("/"))
-        command = ["xrdcp", "-fr", f, outPathForCopy]
+        command = ["xrdcp", "--parallel", "4", "-fr", f, outPathForCopy]
 
         logger.debug(f"Executing {' '.join(command)}")
         if subprocess.call(command):

@@ -107,13 +107,18 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     if plot_title: ax1.set_title(plot_title, pad = title_padding)
     return fig,ax1,ax2
 
-def addLegend(ax, ncols=2, extra_text=None, extra_text_loc=(0.8, 0.7), text_size=20, loc='upper right'):
+def addLegend(ax, ncols=2, extra_text=None, extra_text_loc=(0.8, 0.7), text_size=20, loc='upper right', nunstacked=0):
     handles, labels = ax.get_legend_handles_labels()
     
     shape = np.divide(*ax.get_figure().get_size_inches())
     #TODO: The goal is to leave the data in order, but it should be less hacky
-    handles[:] = reversed(handles)
-    labels[:] = reversed(labels)
+    if "Data" in labels and nunstacked:
+        reord = lambda x,n=nunstacked-1: [x[-1], *reversed(x[:-n]), *x[-n:-1]]
+        handles[:] = reord(handles)
+        labels[:] = reord(labels)
+    else:
+        handles[:] = reversed(handles)
+        labels[:] = reversed(labels)
     if len(handles) % 2 and ncols == 2:
         handles.insert(math.floor(len(handles)/2), patches.Patch(color='none', label = ' '))
         labels.insert(math.floor(len(labels)/2), ' ')
@@ -335,7 +340,7 @@ def makeStackPlotWithRatio(
                 **optsr
             )
 
-    addLegend(ax1, nlegcols, extra_text=extra_text, extra_text_loc=extra_text_loc, text_size=legtext_size)
+    addLegend(ax1, nlegcols, extra_text=extra_text, extra_text_loc=extra_text_loc, text_size=legtext_size, nunstacked=len(unstacked))
     if add_ratio:
         fix_axes(ax1, ax2, yscale=yscale, logy=logy)
     else:

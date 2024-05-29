@@ -39,12 +39,12 @@ process_supergroups["z_lowpu"]=process_supergroups["z_dilepton"]
 
 process_labels = {
     "Data": "Data",
-    "Zmumu": r"Z$\to\mu\mu$",
+    "Zmumu": r"Z$\to\mu\mu$ (NNLO+N$^{3}$LL)",
     "Zee": r"Z$\to ee$",
     "Zll": r"Z$\to\ell\ell$",
     "Z": r"Z",
     "Ztautau": r"Z$\to\tau\tau$",
-    "Wmunu":  r"W$^{\pm}\to\mu\nu$",
+    "Wmunu":  r"W$^{\pm}\to\mu\nu$ (NNLO+N$^{3}$LL)",
     "Wenu": r"W$^{\pm}\to e\nu$",
     "Wtaunu": r"W$^{\pm}\to\tau\nu$",
     "DYlowMass": r"Z$\to\mu\mu$, $10<m<50$ GeV",

@@ -665,6 +665,7 @@ def setup(args, inputFile, fitvar, xnorm=False):
         np_model=args.npUnc,
         tnp_scale = args.scaleTNP,
         mirror_tnp=False,
+        as_from_corr=False,
         pdf_from_corr=args.pdfUncFromCorr,
         scale_pdf_unc=args.scalePdf,
         minnlo_unc=args.minnloScaleUnc,
@@ -790,22 +791,22 @@ def setup(args, inputFile, fitvar, xnorm=False):
                     splitGroup=splitGroupDict,
                 )
                 # now add other systematics if present
-                if name=="effSystTnP":
-                    for es in common.muonEfficiency_altBkgSyst_effSteps:
-                        cardTool.addSystematic(
-                            f"effSystTnP_altBkg_{es}",
-                            mirror=mirror,
-                            mirrorDownVarEqualToNomi=mirrorDownVarEqualToNomi,
-                            group=f"muon_eff_syst_{es}_altBkg",
-                            systAxes = ["n_syst_variations"],
-                            labelsByAxis = [f"{es}_altBkg_etaDecorr"],
-                            baseName=name+"_",
-                            processes=['MCnoQCD'],
-                            passToFakes=passSystToFakes,
-                            systNameReplace=[("effSystTnP", "effSyst"), ("etaDecorr0", "fullyCorr")],
-                            scale=scale,
-                            splitGroup={groupName: ".*"},
-                        )
+                #if name=="effSystTnP":
+                #    for es in common.muonEfficiency_altBkgSyst_effSteps:
+                #        cardTool.addSystematic(
+                #            f"effSystTnP_altBkg_{es}",
+                #            mirror=mirror,
+                #            mirrorDownVarEqualToNomi=mirrorDownVarEqualToNomi,
+                #            group=f"muon_eff_syst_{es}_altBkg",
+                #            systAxes = ["n_syst_variations"],
+                #            labelsByAxis = [f"{es}_altBkg_etaDecorr"],
+                #            baseName=name+"_",
+                #            processes=['MCnoQCD'],
+                #            passToFakes=passSystToFakes,
+                #            systNameReplace=[("effSystTnP", "effSyst"), ("etaDecorr0", "fullyCorr")],
+                #            scale=scale,
+                #            splitGroup={groupName: ".*"},
+                #        )
 
             if wmass:
                 allEffTnP_veto = ["effStatTnP_veto_sf", "effSystTnP_veto"]
@@ -963,35 +964,35 @@ def setup(args, inputFile, fitvar, xnorm=False):
         passToFakes=passSystToFakes,
     )
 
-    mzerr = 2.1e-3
-    mz0 = 91.18
-    adhocA = args.correlatedAdHocA
-    nomvarA = common.correlated_variation_base_size["A"]
-    scaleA = math.sqrt( (mzerr/mz0)**2 + adhocA**2 )/nomvarA
+    #mzerr = 2.1e-3
+    #mz0 = 91.18
+    #adhocA = args.correlatedAdHocA
+    #nomvarA = common.correlated_variation_base_size["A"]
+    #scaleA = math.sqrt( (mzerr/mz0)**2 + adhocA**2 )/nomvarA
 
-    adhocM = args.correlatedAdHocM
-    nomvarM = common.correlated_variation_base_size["M"]
-    scaleM = adhocM/nomvarM
+    #adhocM = args.correlatedAdHocM
+    #nomvarM = common.correlated_variation_base_size["M"]
+    #scaleM = adhocM/nomvarM
 
-    cardTool.addSystematic("muonScaleClosASyst_responseWeights",
-        processes=['single_v_samples'],
-        group="scaleClosACrctn",
-        splitGroup={f"muonCalibration" : f".*"},
-        baseName="ScaleClosA_correction_",
-        systAxes=["unc", "downUpVar"],
-        passToFakes=passSystToFakes,
-        scale = scaleA,
-    )
-    if abs(scaleM) > 0.:
-        cardTool.addSystematic("muonScaleClosMSyst_responseWeights",
-            processes=['single_v_samples'],
-            group="scaleClosMCrctn",
-            splitGroup={f"muonCalibration" : f".*"},
-            baseName="ScaleClosM_correction_",
-            systAxes=["unc", "downUpVar"],
-            passToFakes=passSystToFakes,
-            scale = scaleM,
-        )
+    #cardTool.addSystematic("muonScaleClosASyst_responseWeights",
+    #    processes=['single_v_samples'],
+    #    group="scaleClosACrctn",
+    #    splitGroup={f"muonCalibration" : f".*"},
+    #    baseName="ScaleClosA_correction_",
+    #    systAxes=["unc", "downUpVar"],
+    #    passToFakes=passSystToFakes,
+    #    scale = scaleA,
+    #)
+    #if abs(scaleM) > 0.:
+    #    cardTool.addSystematic("muonScaleClosMSyst_responseWeights",
+    #        processes=['single_v_samples'],
+    #        group="scaleClosMCrctn",
+    #        splitGroup={f"muonCalibration" : f".*"},
+    #        baseName="ScaleClosM_correction_",
+    #        systAxes=["unc", "downUpVar"],
+    #        passToFakes=passSystToFakes,
+    #        scale = scaleM,
+    #    )
     if not input_tools.args_from_metadata(cardTool, "noSmearing"):
         cardTool.addSystematic("muonResolutionSyst_responseWeights", 
             mirror = True,

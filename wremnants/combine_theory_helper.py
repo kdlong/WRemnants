@@ -145,6 +145,9 @@ class TheoryHelper(object):
                     self.add_minnlo_scale_uncertainty(sample_group, extra_name = "fine", rebin_pt=common.ptV_binning[::2], helicities_to_exclude=helicities_to_exclude)
                     self.add_minnlo_scale_uncertainty(sample_group, extra_name = "inclusive", rebin_pt=[common.ptV_binning[0], common.ptV_binning[-1]], helicities_to_exclude=helicities_to_exclude)
 
+            # additional uncertainty for effect of shower and intrinsic kt on angular coeffs
+            self.add_helicity_shower_kt_uncertainty()
+
     def add_minnlo_scale_uncertainty(self, sample_group, extra_name="", use_hel_hist=True, rebin_pt=None, helicities_to_exclude=None, pt_min = None):
         if not sample_group or sample_group not in self.card_tool.procGroups:
             logger.warning(f"Skipping QCD scale syst '{self.minnlo_unc}' for group '{sample_group}.' No process to apply it to")
@@ -174,6 +177,9 @@ class TheoryHelper(object):
 
         # skip nominal
         skip_entries.append({"vars" : "nominal"})
+
+        # skip pythia shower and kt variations since they are handled elsewhere
+        skip_entries.append({"vars" : "pythia_shower_kt"})
 
         if helicities_to_exclude:
             for helicity in helicities_to_exclude:
@@ -231,7 +237,7 @@ class TheoryHelper(object):
                 symmetrize = "quadratic",
                 processes=[sample_group],
                 group=group_name,
-                splitGroup={"QCDscale": ".*", "pTModeling" : ".*", },
+                splitGroup={"QCDscale": ".*", "angularCoeffs" : ".*", "theory": ".*"},
                 systAxes=syst_axes,
                 labelsByAxis=syst_ax_labels,
                 skipEntries=skip_entries,
@@ -240,6 +246,24 @@ class TheoryHelper(object):
                 passToFakes=self.propagate_to_fakes,
                 rename=base_name, # Needed to allow it to be called multiple times
             )
+
+    def add_helicity_shower_kt_uncertainty(self):
+        # select the proper variation and project over gen pt unless it is one of the fit variables
+        if "ptVgen" in self.card_tool.fit_axes:
+            op = lambda h: h[{self.syst_ax : ["pythia_shower_kt"]}]
+        else:
+            op = lambda h: h[{"ptVgen" : hist.sum, self.syst_ax : ["pythia_shower_kt"]}]
+
+        self.card_tool.addSystematic(name="qcdScaleByHelicity",
+            processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
+            passToFakes=self.propagate_to_fakes,
+            systAxes=[self.syst_ax],
+            preOp=op,
+            group="helicity_shower_kt",
+            splitGroup={"angularCoeffs": ".*", "theory": ".*"},
+            rename="helicity_shower_kt",
+            mirror=True,
+        )
 
     def add_scetlib_dyturbo_scale_uncertainty(self, extra_name="", transition = True, rebin_pt=None):
         obs = self.card_tool.fit_axes[:]
@@ -293,7 +317,7 @@ class TheoryHelper(object):
             self.card_tool.addSystematic(name=self.scale_hist_name,
                 processes=[sample_group],
                 group="resumTransitionFOScale",
-                splitGroup={"resum": ".*", "pTModeling" : ".*", },
+                splitGroup={"resum": ".*", "pTModeling" : ".*", "theory": ".*"},
                 systAxes=[pt_ax, "vars"],
                 symmetrize = "quadratic",
                 passToFakes=self.propagate_to_fakes,
@@ -328,7 +352,7 @@ class TheoryHelper(object):
         self.card_tool.addSystematic(name=self.corr_hist_name,
             processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
             group="resumTNP",
-            splitGroup={"resum": ".*", "pTModeling" : ".*", },
+            splitGroup={"resum": ".*", "pTModeling" : ".*", "theory": ".*"},
             systAxes=["vars"],
             passToFakes=self.propagate_to_fakes,
             systNameReplace=name_replace,
@@ -395,7 +419,7 @@ class TheoryHelper(object):
             preOp=lambda h: h[{self.syst_ax : var_vals}],
             outNames=var_names,
             group="resumNonpert",
-            splitGroup={"resum": ".*"},
+            splitGroup={"resum": ".*", "theory": ".*"},
             rename="scetlibNP",
         )
 
@@ -413,7 +437,7 @@ class TheoryHelper(object):
         card_tool.addSystematic(name=theory_hist,
             processes=self.samples,
             group="resumScale",
-            splitGroup={"resum": ".*"},
+            splitGroup={"resum": ".*", "theory": ".*"},
             passToFakes=to_fakes,
             skipEntries=[{syst_ax : x} for x in both_exclude+tnp_nuisances],
             systAxes=["downUpVar"], # Is added by the preOpMap
@@ -426,7 +450,7 @@ class TheoryHelper(object):
         card_tool.addSystematic(name=theory_hist,
             processes=self.samples,
             group="resumScale",
-            splitGroup={"resum": ".*"},
+            splitGroup={"resum": ".*", "theory": ".*"},
             passToFakes=to_fakes,
             systAxes=["vars"],
             preOpMap={s : lambda h: h[{"vars" : ["kappaFO0.5-kappaf2.", "kappaFO2.-kappaf0.5", "mufdown", "mufup",]}] for s in expanded_samples},
@@ -477,7 +501,7 @@ class TheoryHelper(object):
                 self.card_tool.addSystematic(name=self.np_hist_name,
                     processes=[sample_group],
                     group="resumNonpert",
-                    splitGroup={"resum": ".*"},
+                    splitGroup={"resum": ".*", "theory": ".*"},
                     systAxes=syst_axes,
                     passToFakes=self.propagate_to_fakes,
                     preOp=operation,
@@ -513,7 +537,7 @@ class TheoryHelper(object):
             processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
             mirror=True if symHessian else False,
             group=pdfName,
-            splitGroup={f"{pdfName}NoAlphaS": '.*'},
+            splitGroup={f"{pdfName}NoAlphaS": '.*', "theory": ".*"},
             passToFakes=self.propagate_to_fakes,
             preOpMap=operation,
             scale=pdfInfo.get("scale", 1)*scale,
@@ -536,7 +560,7 @@ class TheoryHelper(object):
                     processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
                     mirror=True,
                     group=pdfName,
-                    splitGroup={f"{pdfName}NoAlphaS": '.*'},
+                    splitGroup={f"{pdfName}NoAlphaS": '.*', "theory": ".*"},
                     passToFakes=self.propagate_to_fakes,
                     preOpMap=operation,
                     scale=pdfInfo.get("scale", 1)*scale,
@@ -551,7 +575,7 @@ class TheoryHelper(object):
             processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
             mirror=False,
             group=pdfName,
-            splitGroup={f"{pdfName}AlphaS": '.*'},
+            splitGroup={f"{pdfName}AlphaS": '.*', "theory": ".*"},
             systAxes=["vars" if self.as_from_corr else "alphasVar"],
             scale=(0.75 if asRange == "002" else 1.5)*scale,
             symmetrize=symmetrize,
@@ -591,7 +615,7 @@ class TheoryHelper(object):
             self.card_tool.addSystematic(name=self.corr_hist_name,
                 processes=[sample_group],
                 group="resumTransitionFOScale",
-                splitGroup={"resum": ".*", "pTModeling" : ".*", },
+                splitGroup={"resum": ".*", "pTModeling" : ".*", "theory": ".*"},
                 systAxes=["vars"],
                 symmetrize = "quadratic",
                 passToFakes=self.propagate_to_fakes,
@@ -622,7 +646,7 @@ class TheoryHelper(object):
             systAxes=[syst_ax],
             symmetrize = "quadratic",
             group="bcQuarkMass",
-            splitGroup={"pTModeling" : ".*", },
+            splitGroup={"pTModeling" : ".*", "theory": ".*"},
             passToFakes=self.propagate_to_fakes,
             outNames=["", "pdfMSHT20mbrangeDown",]+[""]*4+["pdfMSHT20mbrangeUp"],
         )
@@ -632,7 +656,7 @@ class TheoryHelper(object):
             systAxes=[syst_ax],
             symmetrize = "quadratic",
             group="bcQuarkMass",
-            splitGroup={"pTModeling" : ".*", },
+            splitGroup={"pTModeling" : ".*", "theory": ".*"},
             passToFakes=self.propagate_to_fakes,
             outNames=["", "pdfMSHT20mcrangeDown",]+[""]*6+["pdfMSHT20mcrangeUp"],
         )

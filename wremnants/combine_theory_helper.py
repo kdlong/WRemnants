@@ -68,7 +68,7 @@ class TheoryHelper(object):
         self.samples = samples
         self.skipFromSignal = skipFromSignal
         self.add_nonpert_unc(model=self.np_model)
-        self.add_resum_unc(scale=self.tnp_scale)
+        self.add_resum_unc()
         self.add_pdf_uncertainty(operation=self.pdf_operation, scale=self.scale_pdf_unc)
         try:
             self.add_quark_mass_vars()
@@ -112,13 +112,13 @@ class TheoryHelper(object):
 
         self.resumUnc = resumUnc
         
-    def add_resum_unc(self, scale=1):
+    def add_resum_unc(self):
         if not self.resumUnc:
             logger.warning("No resummation uncertainty will be applied!")
             return
 
         if self.resumUnc.startswith("tnp"):
-            self.add_resum_tnp_unc(scale)
+            self.add_resum_tnp_unc()
 
             fo_scale = self.resumUnc == "tnp"
             self.add_transition_fo_scale_uncertainties(transition = self.transitionUnc, scale = fo_scale)
@@ -309,7 +309,7 @@ class TheoryHelper(object):
     def set_propagate_to_fakes(self, to_fakes):
         self.propagate_to_fakes = to_fakes
 
-    def add_resum_tnp_unc(self, magnitude, scale=1):
+    def add_resum_tnp_unc(self):
         syst_ax = self.corr_hist.axes[self.syst_ax]
 
         tnp_has_mirror = ("+" in self.tnp_nuisances[0] and self.tnp_nuisances[0].replace("+", "-") in syst_ax) or \
@@ -334,7 +334,7 @@ class TheoryHelper(object):
             systNameReplace=name_replace,
             preOp=lambda h: h[{self.syst_ax : [central_var, *self.tnp_nuisances]}],
             mirror=self.mirror_tnp,
-            scale=scale,
+            scale=self.tnp_scale,
             skipEntries=[{self.syst_ax : central_var},],
             rename=f"resumTNP",
             systNamePrepend=f"resumTNP_",
@@ -375,7 +375,7 @@ class TheoryHelper(object):
     def add_gamma_np_uncertainties(self):
         # Since "c_nu = 0.1 is the central value, it doesn't show up in the name"
         gamma_vals = list(filter(lambda x: x in self.corr_hist.axes[self.syst_ax], 
-            ["c_nu-0.1-omega_nu0.5", "omega_nu0.5", "c_nu-0.25", "c_nu-0.25"]))
+            ["c_nu-0.1-omega_nu0.2", "omega_nu0.2", "c_nu-0.25", "c_nu-0.25"]))
 
         if len(gamma_vals) != 2:
             raise ValueError(f"Failed to find consistent variation for gamma NP in hist {self.corr_hist_name}")

@@ -91,6 +91,7 @@ def make_parser(parser=None):
     parser.add_argument("--scaleTNP", default=1, type=float, help="Scale the TNP uncertainties by this factor")
     parser.add_argument("--scalePdf", default=1, type=float, help="Scale the PDF hessian uncertainties by this factor")
     parser.add_argument("--pdfUncFromCorr", action='store_true', help="Take PDF uncertainty from correction hist (Requires having run that correction)")
+    parser.add_argument("--asFromMiNNLO", action='store_true', help="Take as uncertainty from MiNNLO instead of correction hist")
     parser.add_argument("--massVariation", type=float, default=100, help="Variation of boson mass")
     parser.add_argument("--ewUnc", type=str, nargs="*", default=["renesanceEW", "powhegFOEW"], help="Include EW uncertainty (other than pure ISR or FSR)",
         choices=[x for x in theory_corrections.valid_theory_corrections() if ("ew" in x or "EW" in x) and "ISR" not in x and "FSR" not in x])
@@ -711,7 +712,7 @@ def setup(args, inputFile, fitvar, xnorm=False):
         np_model=args.npUnc,
         tnp_scale = args.scaleTNP,
         mirror_tnp=False,
-        as_from_corr=True,
+        as_from_corr=not args.asFromMiNNLO,
         pdf_from_corr=args.pdfUncFromCorr,
         scale_pdf_unc=args.scalePdf,
         minnlo_unc=args.minnloScaleUnc,

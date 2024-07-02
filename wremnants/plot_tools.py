@@ -555,6 +555,11 @@ def redo_axis_ticks(ax, axlabel, no_labels=False):
     labels = [format_axis_num(x, ticks[-1]) for x in ticks] if not no_labels else []
     getattr(ax, f"set_{axlabel}ticklabels")(labels)
 
+    #if axlabel == "y"
+    #    # Could possibly add back exp with https://stackoverflow.com/questions/39620700/positioning-the-exponent-of-tick-labels-when-using-scientific-notation
+    #    ax2.annotate(r'$\times$10$^{%i}$'%(exponent_axis),
+    #                 xy=(.89, .01), xycoords='axes fraction')
+
 def format_axis_num(val, maxval):
     if type(val) == int or val.is_integer():
         # This is kinda dumb and I might change it
@@ -584,7 +589,7 @@ def write_index_and_log(outpath, logname, template_dir=f"{pathlib.Path(__file__)
 
     with open(logname, "w") as logf:
         meta_info = '-'*80 + '\n' + \
-            f'Script called at {datetime.datetime.now()}\n' + \
+            f'Script called at {datetime.datetime.utcnow()}\n' + \
             f'The command was: {narf.ioutils.script_command_to_str(sys.argv, args)}\n' + \
             '-'*80 + '\n'
         logf.write(meta_info)

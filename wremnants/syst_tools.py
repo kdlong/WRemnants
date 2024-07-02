@@ -134,12 +134,14 @@ def syst_transform_map(base_hist, hist_name):
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
                  ["c_nu-0.1-omega_nu0.3", "omega_nu0.3", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
                      "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",],
-                 no_flow=["ptVgen"], do_min=False) if "vars" in h.axes.name else h},
+                 no_flow=["ptVgen"], do_min=False) if "vars" in h.axes.name else h,
+        },
        "resumNPDown" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
                  ["c_nu-0.1-omega_nu0.3", "omega_nu0.3", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
                      "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",],
-                 no_flow=["ptVgen"], do_min=True) if "vars" in h.axes.name else h},
+                 no_flow=["ptVgen"], do_min=True) if "vars" in h.axes.name else h,
+        },
        "resumNPOmegaUp" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
                 [x for x in h.axes["vars"] if re.match("^Omega-*\d+", x)],

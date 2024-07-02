@@ -37,6 +37,7 @@ parser.add_argument("--noTrigger", action="store_true", help="Just for test: rem
 parser.add_argument("--selectNonPromptFromSV", action="store_true", help="Test: define a non-prompt muon enriched control region")
 parser.add_argument("--selectNonPromptFromLighMesonDecay", action="store_true", help="Test: define a non-prompt muon enriched control region with muons from light meson decays")
 parser.add_argument("--useGlobalOrTrackerVeto", action="store_true", help="Use global-or-tracker veto definition and scale factors instead of global only")
+
 #
 
 args = parser.parse_args()
@@ -117,7 +118,8 @@ axis_fakes_eta = hist.axis.Regular(int((template_maxeta-template_mineta)*10/2), 
 axis_fakes_pt = hist.axis.Variable(common.get_binning_fakes_pt(template_minpt, template_maxpt), name = "pt", overflow=False, underflow=False)
 
 axis_mtCat = hist.axis.Variable(common.get_binning_fakes_mt(mtw_min), name = "mt", underflow=False, overflow=True)
-axes_abcd = [axis_mtCat, common.axis_relIsoCat]
+axis_isoCat = hist.axis.Variable(common.get_binning_fakes_relIso(), name = "relIso",underflow=False, overflow=True)
+axes_abcd = [axis_mtCat, axis_isoCat]
 axes_fakerate = [axis_fakes_eta, axis_fakes_pt, axis_charge, *axes_abcd]
 columns_fakerate = ["goodMuons_eta0", "goodMuons_pt0", "goodMuons_charge0", "transverseMass", "goodMuons_relIso0"]
 
@@ -226,6 +228,11 @@ if isTheoryAgnosticPolVar:
     theoryAgnostic_helpers_minus = wremnants.helicity_utils_polvar.makehelicityWeightHelper_polvar(genVcharge=-1, fileTag=args.theoryAgnosticFileTag, filePath=args.theoryAgnosticFilePath)
     theoryAgnostic_helpers_plus  = wremnants.helicity_utils_polvar.makehelicityWeightHelper_polvar(genVcharge=1,  fileTag=args.theoryAgnosticFileTag, filePath=args.theoryAgnosticFilePath)
 
+# Helper for muR and muF as polynomial variations
+muRmuFPolVar_helpers_minus = wremnants.helicity_utils_polvar.makehelicityWeightHelper_polvar(genVcharge=-1, fileTag=args.muRmuFPolVarFileTag, filePath=args.muRmuFPolVarFilePath, noUL=True)
+muRmuFPolVar_helpers_plus  = wremnants.helicity_utils_polvar.makehelicityWeightHelper_polvar(genVcharge=1,  fileTag=args.muRmuFPolVarFileTag, filePath=args.muRmuFPolVarFilePath, noUL=True)
+muRmuFPolVar_helpers_Z     = wremnants.helicity_utils_polvar.makehelicityWeightHelper_polvar(genVcharge=0,  fileTag=args.muRmuFPolVarFileTag, filePath=args.muRmuFPolVarFilePath, noUL=True)
+
 # recoil initialization
 if not args.noRecoil:
     from wremnants import recoil_tools
@@ -311,11 +318,13 @@ def build_graph(df, dataset):
             
             unfolding_tools.add_xnorm_histograms(results, df, args, dataset.name, corr_helpers, qcdScaleByHelicity_helper, unfolding_axes, unfolding_cols)
 
-    if isTheoryAgnostic and isWmunu: # should be isW to do also Wtaunu
+    if isWorZ:
         df = theory_tools.define_prefsr_vars(df)
+        df = df.Define("qtOverQ", "ptVgen/massVgen") # FIXME: should there be a protection against mass=0 and what value to use?
+    
+    if isTheoryAgnostic and isWmunu: # should be isW to do also Wtaunu
         usePtOverM = False
         if isTheoryAgnosticPolVar:
-            df = df.Define("qtOverQ", "ptVgen/massVgen") # FIXME: should there be a protection against mass=0 and what value to use?
             OOAthresholds = args.theoryAgnosticFileTag.split("_")
             ptVthresholdOOA   = float(OOAthresholds[0].replace("x","").replace("p","."))
             absyVthresholdOOA = float(OOAthresholds[1].replace("y","").replace("p","."))
@@ -478,7 +487,8 @@ def build_graph(df, dataset):
     if not args.noRecoil:
         leps_uncorr = ["Muon_pt[goodMuons][0]", "Muon_eta[goodMuons][0]", "Muon_phi[goodMuons][0]", "Muon_charge[goodMuons][0]"]
         leps_corr = ["goodMuons_pt0", "goodMuons_eta0", "goodMuons_phi0", "goodMuons_charge0"]
-        df = recoilHelper.recoil_W(df, results, dataset, common.vprocs, leps_uncorr, leps_corr, cols_fakerate=columns_fakerate, axes_fakerate=axes_fakerate, mtw_min=mtw_min) # produces corrected MET as MET_corr_rec_pt/phi
+        df = recoilHelper.recoil_W(df, results, dataset, common.wprocs_recoil, leps_uncorr, leps_corr, cols_fakerate=columns_fakerate, axes_fakerate=axes_fakerate, mtw_min=mtw_min) # produces corrected MET as MET_corr_rec_pt/phi
+
     else:
         met = "DeepMETResolutionTune" if args.met == "DeepMETReso" else args.met
         df = df.Alias("MET_corr_rec_pt", f"{met}_pt")
@@ -606,6 +616,25 @@ def build_graph(df, dataset):
         # End graph here only for standard theory agnostic analysis, otherwise use same loop as traditional analysis
         return results, weightsum
 
+    if isWorZ and not hasattr(dataset, "out_of_acceptance"):
+        theoryAgnostic_helpers_cols = ["qtOverQ", "absYVgen", "chargeVgen", "csSineCosThetaPhigen", "nominal_weight"]
+        # assume to have same coeffs for plus and minus (no reason for it not to be the case)
+        if dataset.name == "WplusmunuPostVFP" or dataset.name == "WplustaunuPostVFP":
+            helpers_class = muRmuFPolVar_helpers_plus
+            process_name = "W"
+        elif dataset.name == "WminusmunuPostVFP" or dataset.name == "WminustaunuPostVFP":
+            helpers_class = muRmuFPolVar_helpers_minus
+            process_name = "W"
+        elif dataset.name == "ZmumuPostVFP" or dataset.name == "ZtautauPostVFP":
+            helpers_class = muRmuFPolVar_helpers_Z
+            process_name = "Z"
+        for coeffKey in helpers_class.keys():
+            logger.debug(f"Creating muR/muF histograms with polynomial variations for {coeffKey}")
+            helperQ = helpers_class[coeffKey]
+            df = df.Define(f"muRmuFPolVar_{coeffKey}_tensor", helperQ, theoryAgnostic_helpers_cols)
+            noiAsPoiWithPolHistName = Datagroups.histName("nominal", syst=f"muRmuFPolVar{process_name}_{coeffKey}")
+            results.append(df.HistoBoost(noiAsPoiWithPolHistName, nominal_axes, [*nominal_cols, f"muRmuFPolVar_{coeffKey}_tensor"], tensor_axes=helperQ.tensor_axes, storage=hist.storage.Double()))
+
     if not args.onlyMainHistograms:
         syst_tools.add_QCDbkg_jetPt_hist(results, df, axes, cols, jet_pt=30, storage_type=storage_type)
 
@@ -624,11 +653,10 @@ def build_graph(df, dataset):
             results.append(yieldsForWeffMC)
 
         if not args.noRecoil and args.recoilUnc:
-            df = recoilHelper.add_recoil_unc_W(df, results, dataset, cols, axes, "nominal", storage_type=storage_type)
+            df = recoilHelper.add_recoil_unc_W(df, results, dataset, cols, axes, base_name="nominal", storage_type=storage_type)
         if apply_theory_corr:
-            results.extend(theory_tools.make_theory_corr_hists(df, "nominal", axes, cols, corr_helpers[dataset.name], theory_corrs, 
+            syst_tools.add_theory_corr_hists(results, df, axes, cols, corr_helpers[dataset.name], theory_corrs, base_name="nominal", 
                 modify_central_weight=not args.theoryCorrAltOnly, isW = isW, storage_type=storage_type)
-            )
         if isWorZ:
             cols_gen, cols_gen_smeared = muon_calibration.make_alt_reco_and_gen_hists(df, results, axes, cols, reco_sel_GF)
             if args.validationHists: 

@@ -50,13 +50,23 @@ def broadcastSystHist(h1, h2, flow=True, by_ax_name=True):
 
     return hist.Hist(*h2.axes, data=new_vals, storage=h1.storage_type())
 
-# returns h1/h2
 def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, cutoff_val=1., flow=True, createNew=True, by_ax_name=True):
+    """ 
+        Parameters:
+        rel_unc (bool): Treat the divisor as a constant
+
+        Returns:
+        hist: h1/h2
+    """
     if allowBroadcast:
         h1 = broadcastSystHist(h1, h2, flow, by_ax_name)
         h2 = broadcastSystHist(h2, h1, flow, by_ax_name)
-
-    storage = h1.storage_type() if h1.storage_type == h2.storage_type else hist.storage.Double()
+    
+    if rel_unc:
+        storage = h1.storage_type()
+    else:
+        storage = h1.storage_type() if h1.storage_type == h2.storage_type else hist.storage.Double()
+    
     outh = hist.Hist(*h1.axes, storage=storage) if createNew else h1
 
     h1vals,h2vals,h1vars,h2vars = valsAndVariances(h1, h2, flow=flow)
@@ -82,7 +92,6 @@ def divideHists(h1, h2, cutoff=1e-5, allowBroadcast=True, rel_unc=False, cutoff_
         relvars = relVariances(h1vals, h2vals, h1vars, h2vars, cutoff=cutoff)
         val2 = np.multiply(val, val)
         if rel_unc:
-            # Treat the divisor as a constant
             var = np.multiply(val2, relvars[0], out=val2)
         else:
             relsum = np.add(*relvars)
@@ -359,7 +368,7 @@ def rebinHistMultiAx(h, axes, edges=[], lows=[], highs=[]):
             upper = hist.overflow if high==h.axes[ax].edges[-1] else complex(0, high) 
             logger.info(f"Restricting the axis '{ax}' to range [{low}, {high}]")
             sel[ax] = slice(complex(0, low), upper, hist.rebin(rebin) if rebin else None)
-        elif type(rebin) == int:
+        elif type(rebin) == int and rebin > 1:
             logger.info(f"Rebinning the axis '{ax}' by [{rebin}]")
             sel[ax] = slice(None,None,hist.rebin(rebin))
     return h[sel] if len(sel)>0 else h        
@@ -782,7 +791,7 @@ def rescaleBandVariation(histo, factor):
         histo[...]= np.stack([new_lower,new_upper],axis=-1)
         return histo
 
-def rssHists(h, syst_axis, scale=1., hnom=None):
+def rssHists(h, syst_axis, scale=1., hnom=None, returnDiff=False, returnDiffSquare=False):
     s = hist.tag.Slicer()
 
     if hnom is None:
@@ -790,8 +799,12 @@ def rssHists(h, syst_axis, scale=1., hnom=None):
 
     hdiff = addHists(h, hnom, scale2=-1.)*scale
     hss = multiplyHists(hdiff, hdiff)
+    if returnDiffSquare:
+        return hss[{syst_axis : s[0:hist.overflow:hist.sum]}]
 
     hrss = sqrtHist(hss[{syst_axis : s[0:hist.overflow:hist.sum]}])
+    if returnDiff:
+        return hrss
     hUp = addHists(hnom, hrss)
     hDown = addHists(hnom, hrss, scale2=-1.)
 

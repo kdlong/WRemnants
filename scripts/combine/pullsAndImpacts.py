@@ -339,7 +339,7 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
     poi_type = poi.split("_")[-1] if poi else None
 
     if poi is not None and "MeV" in poi:
-        scale = float(re.search(r'\d+(\.\d+)?', poi.split("MeV")[0].replace("p",".")).group())
+        scale = float(re.findall(r'\d+', poi.split("MeV")[0].replace("p","."))[-1])
         if "Diff" in poi:
             scale *= 2 # take diffs by 2 as up and down pull in opposite directions
     else:
@@ -467,7 +467,7 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
         fig = plotImpacts(df, pulls=not args.noPulls and not group, impact_title=impact_title, normalize=not args.absolute, oneSidedImpacts=args.oneSidedImpacts)
         writeOutput(fig, outfile, extensions[0:], postfix=postfix, args=args, meta_info=meta)      
         if args.eoscp and output_tools.is_eosuser_path(args.outFolder):
-            output_tools.copy_to_eos(args.outFolder, "")
+            output_tools.copy_to_eos(outdir, args.outFolder, "")
     else:
         raise ValueError("Must select mode 'interactive' or 'output'")
 

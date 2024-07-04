@@ -93,6 +93,10 @@ axis_charge = hist.axis.Regular(2, -2., 2., underflow=False, overflow=False, nam
 down_up_axis = hist.axis.Regular(2, -2., 2., underflow=False, overflow=False, name = "downUpVar")
 down_nom_up_axis = hist.axis.Regular(3, -1.5, 1.5, underflow=False, overflow=False, name = "downNomUpVar")
 
+# run edges chosen to separate eras (era F post VFP: [278769, 278808], era G [278820, 280385], era F [281613, 284044])
+run_edges = np.array([278768, 278808, 279588, 279767, 280017, 280385, 282037, 283270, 283478, 283934, 284044])
+run_edges_lumi = np.array([0.0, 0.419, 2.332, 4.329, 6.247, 8.072, 10.152, 12.265, 14.067, 15.994, 16.812])
+
 # for fake estimation
 # binary categories for simple ABCD method
 passIsoName = "passIso"
@@ -110,19 +114,40 @@ axis_passMT = hist.axis.Boolean(name = passMTName)
 axis_isoCat = hist.axis.Variable([0,4,8], name = "iso",underflow=False, overflow=True)
 axis_relIsoCat = hist.axis.Variable([0,0.15,0.3], name = "relIso",underflow=False, overflow=True)
 
+
 def get_binning_fakes_pt(min_pt, max_pt):
     edges = np.arange(min_pt,32,1)
     edges = np.append(edges, [e for e in [33,36,40,46,56] if e<max_pt][:-1])
     edges = np.append(edges, [max_pt])
+    ## the following lines are used to replace the previous ones when studying different pT binning and the MC stat
+    #edges = np.arange(min_pt,32.1,1.2)  
+    #edges = np.append(edges, [e for e in [34.4, 38, 44, 56] if e<max_pt][:-1])
+    #edges = np.append(edges, [max_pt])
+    #edges = np.arange(min_pt,32,2)
+    #edges = np.append(edges, [e for e in [32, 36, 40, 46, 56] if e<max_pt][:-1])
+    #edges = np.append(edges, [max_pt])
     return edges
 
-def get_binning_fakes_mt(mt_cut=40):
+
+def get_binning_fakes_mt(mt_cut=40, high_mt_bins=False):
     edges = np.array([0, int(mt_cut/2.), mt_cut])
-    edges = np.append(edges, [e for e in [30,32,34,36,38,40,44,49,55,62] if e>mt_cut])
+    if high_mt_bins:
+        # needed for extended 2D method
+        edges = np.append(edges, [e for e in [30,32,34,36,38,40,44,49,55,62] if e>mt_cut])
     return edges
+
+
+def get_binning_fakes_relIso(high_iso_bins=False):
+    edges = [0,0.15]
+    if high_iso_bins:
+        # needed for extended 2D method
+        edges.append(0.3)
+    return edges
+
 
 def get_dilepton_ptV_binning(fine=False):
     return [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 20, 23, 27, 32, 40, 54, 100] if not fine else range(60)
+
 
 def get_gen_axes(flow=False, dilepton_ptV_binning=None, inclusive=False):
     if dilepton_ptV_binning is None:
@@ -137,6 +162,7 @@ def get_gen_axes(flow=False, dilepton_ptV_binning=None, inclusive=False):
         gen_axes["absYVGen"] = hist.axis.Variable(binning, name="absYVGen", underflow=False, overflow=flow)
     return gen_axes
 
+
 def get_default_ptbins(analysis_label, unfolding=False, gen=False):
     vals = [30,26.,56.] if analysis_label[0] == "w" else [34,26.,60.]
     if unfolding and gen:
@@ -146,18 +172,22 @@ def get_default_ptbins(analysis_label, unfolding=False, gen=False):
         vals[0] += 2
         vals[2] += 2
     elif gen:
-        values[0] -= 2
-        values[1] += 2
+        vals[0] -= 2
+        vals[1] += 2
     return vals
+
 
 def get_default_etabins(analysis_label=None):
     return (48,-2.4,2.4)
 
+
 def get_default_mtcut(analysis_label=None):
     return 40. if analysis_label[0] == "w" else 45.
 
+
 def get_default_mz_window():
     return 60, 120
+
 
 # following list is used in other scripts to track what steps are charge dependent
 # but assumes the corresponding efficiencies were made that way
@@ -165,12 +195,15 @@ muonEfficiency_chargeDependentSteps = ["reco", "tracking", "idip", "trigger", "a
 muonEfficiency_altBkgSyst_effSteps = ["tracking"]
 muonEfficiency_standaloneNumberOfValidHits = 1 # to use as "var >= this" (if this=0 the define for the cut is not used at all)
 
+
 def getIsoMtRegionID(passIso=True, passMT=True):
     return passIso * 1 + passMT * 2
+
 
 def getIsoMtRegionFromID(regionID):
     return {passIsoName : regionID & 1,
             passMTName  : regionID & 2}
+
 
 def set_parser_default(parser, argument, newDefault):
     # change the default argument of the parser, must be called before parse_arguments
@@ -182,6 +215,7 @@ def set_parser_default(parser, argument, newDefault):
     else:
         logger.warning(f" Parser argument {argument} not found!")
     return parser
+
 
 def set_subparsers(subparser, name, analysis_label):
 
@@ -231,6 +265,7 @@ def set_subparsers(subparser, name, analysis_label):
 
     return subparser
 
+
 def common_histmaker_subparsers(parser, analysis_label):
 
     parser.add_argument("--analysisMode", type=str, default=None,
@@ -245,12 +280,14 @@ def common_histmaker_subparsers(parser, analysis_label):
 
     return parser
 
+
 def base_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", type=int, default=3, choices=[0,1,2,3,4],
                         help="Set verbosity level with logging, the larger the more verbose")
     parser.add_argument("--noColorLogger", action="store_true", help="Do not use logging with colors")
     return parser
+
 
 def common_parser(analysis_label=""):
     for_reco_highPU = "gen" not in analysis_label and "lowpu" not in analysis_label
@@ -291,11 +328,11 @@ def common_parser(analysis_label=""):
     parser.add_argument("-p", "--postfix", type=str, help="Postfix for output file name", default=None)
     parser.add_argument("--forceDefaultName", action='store_true', help="Don't modify the name of the output file with some default strings")
     parser.add_argument("--theoryCorr", nargs="*", type=str, action=NoneFilterAction,
-        default=["scetlib_dyturbo", ], choices=theory_corrections.valid_theory_corrections(), 
+        default=["scetlib_dyturbo", "scetlib_dyturboCT18ZVars", "scetlib_dyturboCT18Z_pdfas"], choices=theory_corrections.valid_theory_corrections(), 
         help="Apply corrections from indicated generator. First will be nominal correction.")
     parser.add_argument("--theoryCorrAltOnly", action='store_true', help="Save hist for correction hists but don't modify central weight")
     parser.add_argument("--ewTheoryCorr", nargs="*", type=str, action=NoneFilterAction, choices=theory_corrections.valid_ew_theory_corrections(), 
-        default=["winhacnloew", "virtual_ew_wlike", "pythiaew_ISR", "horaceqedew_FSR", "horacelophotosmecoffew_FSR", ],
+        default=["renesanceEW", "powhegFOEW", "pythiaew_ISR", "horaceqedew_FSR", "horacelophotosmecoffew_FSR", ],
         help="Add EW theory corrections without modifying the default theoryCorr list. Will be appended to args.theoryCorr")
     parser.add_argument("--skipHelicity", action='store_true', help="Skip the qcdScaleByHelicity histogram (it can be huge)")
     parser.add_argument("--noRecoil", action='store_true', help="Don't apply recoild correction")
@@ -321,6 +358,8 @@ def common_parser(analysis_label=""):
     parser.add_argument("--dummyNonClosureMMag", default=0., type=float, help="magnitude of the dummy value for the alignment part of the Z non-closure")
     parser.add_argument("--noScaleToData", action="store_true", help="Do not scale the MC histograms with xsec*lumi/sum(gen weights) in the postprocessing step")
     parser.add_argument("--aggregateGroups", type=str, nargs="*", default=["Diboson", "Top"], help="Sum up histograms from members of given groups in the postprocessing step")
+    parser.add_argument("--muRmuFPolVarFilePath", type=str, default=f"{data_dir}/MiNNLOmuRmuFPolVar/", help="Path where input files are stored")
+    parser.add_argument("--muRmuFPolVarFileTag", type=str, default="x0p50_y4p00_ConstrPol5ExtYdep_Trad", choices=["x0p50_y4p00_ConstrPol5ExtYdep_Trad","x0p50_y4p00_ConstrPol5Ext_Trad"],help="Tag for input files")
 
     if for_reco_highPU:
         # additional arguments specific for histmaker of reconstructed objects at high pileup (mw, mz_wlike, and mz_dilepton)
@@ -404,7 +443,8 @@ def common_parser(analysis_label=""):
     parser.add_argument("--printParser", action=PrintParserAction, help="Print the whole parser with its arguments (use it as the last argument or default values might not be displayed correctly)")
     
     return parser,initargs
-    
+
+
 def plot_parser():
     parser = base_parser()
     parser.add_argument("-o", "--outpath", type=str, default=os.path.expanduser("~/www/WMassAnalysis"), help="Base path for output")
@@ -417,18 +457,23 @@ def plot_parser():
 
     return parser
 
+
 def natural_sort_key(s):
     # Sort string in a number aware way by plitting the string into alphabetic and numeric parts
     parts = re.split(r'(\d+)', s)
     return [int(part) if part.isdigit() else part.lower() for part in parts]
 
+
 def natural_sort(strings):
     return sorted(strings, key=natural_sort_key)
-    
+
+
 def natural_sort_dict(dictionary):
     sorted_keys = natural_sort(dictionary.keys())
     sorted_dict = {key: dictionary[key] for key in sorted_keys}
     return sorted_dict
+
+
 '''
 INPUT -------------------------------------------------------------------------
 |* (str) string: the string to be converted to list
@@ -451,6 +496,7 @@ def string_to_list(string):
             "string_to_list(): cannot convert an input that is"
             "neither a single string nor a list of strings to a list"
         )
+
 
 '''
 INPUT -------------------------------------------------------------------------

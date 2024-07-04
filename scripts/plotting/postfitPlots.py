@@ -32,6 +32,7 @@ parser.add_argument("--prefit", action='store_true', help="Make prefit plot, els
 parser.add_argument("--selectionAxes", type=str, default=["charge", "passIso", "passMT", "cosThetaStarll"], 
     help="List of axes where for each bin a seperate plot is created")
 parser.add_argument("--axlim", type=float, nargs='*', help="min and max for axes (2 values per axis)")
+parser.add_argument("--invertAxes", action='store_true', help="Invert the order of the axes when plotting")
 
 args = parser.parse_args()
 
@@ -55,16 +56,6 @@ elif os.path.isfile(args.infile.replace(".hdf5",".root")):
 else:
     raise IOError("Unknown source, input file must be either from combinetf2 or combinetf1 (in case of combinetf1 both .root and .hdf5 files must exist)")
 
-# order of the processes in the plots
-procs_sort = ["Wmunu", "Fake", "Zmumu", "Wtaunu", "Top", "DYlowMass", "Other", "Ztautau", "Diboson", "PhotonInduced"][::-1]
-
-def get_labels_colors_procs_sorted(procs):
-    procs = sorted(procs, key=lambda x: procs_sort.index(x) if x in procs_sort else len(procs_sort))
-    logger.info(f"Found processes {procs} in fitresult")
-    labels = [styles.process_labels.get(p, p) for p in procs]
-    colors = [styles.process_colors.get(p, "red") for p in procs]
-    return labels, colors, procs
-
 translate_selection = {
     "charge": {
         0 : "minus",
@@ -85,8 +76,11 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
 
     if len(h_data.axes) > 1:
         if "eta" in axes_names[-1]:
+            axes_names = axes_names[::-1]
+        if args.invertAxes:
             logger.info("invert eta order")
             axes_names = axes_names[::-1]
+
         # make unrolled 1D histograms
         h_data = hh.unrolledHist(h_data, binwnorm=binwnorm, obs=axes_names)
         h_inclusive = hh.unrolledHist(h_inclusive, binwnorm=binwnorm, obs=axes_names)
@@ -195,7 +189,8 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
     hep.cms.label(ax=ax1, lumi=float(f"{lumi:.3g}") if lumi is not None else None, fontsize=20*args.scaleleg*scale, 
         label=args.cmsDecor, data=data)
 
-    plot_tools.addLegend(ax1, ncols=len(h_stack)//3, text_size=20*args.scaleleg*scale)
+    if len(h_stack) < 10:
+        plot_tools.addLegend(ax1, ncols=np.ceil(len(h_stack)/3), text_size=20*args.scaleleg*scale)
     plot_tools.fix_axes(ax1, ax2, yscale=args.yscale)
 
     to_join = [fittype, args.postfix, axis_name, suffix]
@@ -234,6 +229,13 @@ def make_plots(hist_data, hist_inclusive, hist_stack, axes, channel="", *opts, *
             h_inclusive = hist_inclusive[idxs]
             h_stack = [h[idxs] for h in hist_stack]
 
+            if "run" in [a.name for a in selection_axes]:
+                idx = idxs["run"]
+                lumis = common.run_edges_lumi
+                lumi = np.diff(lumis)[idx]
+                logger.info(f"Axis 'run' found in histogram selection_axes, set lumi to {lumi}")
+                kwopts["run"] = lumi
+
             suffix = f"{channel}_" + "_".join([f"{a}{i}" for a, i in idxs.items()])
             logger.info(f"Make plot for axes {[a.name for a in other_axes]}, in bins {idxs}")
             make_plot(h_data, h_inclusive, h_stack, other_axes, suffix=suffix, *opts, **kwopts)
@@ -244,13 +246,15 @@ if combinetf2:
     meta = ioutils.pickle_load_h5py(fitresult_h5py["meta"])
     meta_input=meta["meta_info_input"]
     procs = meta["procs"].astype(str)
-    labels, colors, procs = get_labels_colors_procs_sorted(procs)
+    labels, colors, procs = styles.get_labels_colors_procs_sorted(procs)
 
     chi2=None
     if f"chi2_{fittype}" in fitresult:
-        chi2 = fitresult[f"chi2_{fittype}"], fitresult[f"ndf"]
+        chi2 = fitresult[f"chi2_{fittype}"], fitresult[f"ndf_{fittype}"]
 
     for channel, info in meta_input["channel_info"].items():
+        if channel.endswith("masked"):
+            continue
         hist_data = fitresult["hist_data_obs"][channel].get()
         hist_inclusive = fitresult[f"hist_{fittype}_inclusive"][channel].get()
         hist_stack = fitresult[f"hist_{fittype}"][channel].get()
@@ -262,13 +266,15 @@ else:
     import ROOT
 
     procs = [k.replace("expproc_","").replace(f"_{fittype};1", "") for k in fitresult.keys() if fittype in k and k.startswith("expproc_") and "hybrid" not in k]
-    labels, colors, procs = get_labels_colors_procs_sorted(procs)
+    labels, colors, procs = styles.get_labels_colors_procs_sorted(procs)
 
     if "meta" in fitresult_h5py:
         # the fit was probably done on a file generated via the hdf5 writer and we can use the axes information
         meta = ioutils.pickle_load_h5py(fitresult_h5py["meta"])
         ch_start=0
         for channel, info in meta["channel_info"].items():
+            if channel.endswith("masked"):
+                continue
             shape = [len(a) for a in info["axes"]]
 
             ch_end = ch_start+np.product(shape) # in combinetf1 the channels are concatenated and we need to index one after the other
@@ -369,4 +375,4 @@ else:
         make_plots(hist_data, hist_inclusive, hist_stack, axes, colors=colors, labels=labels, chi2=chi2, saturated_chi2=True)
 
 if output_tools.is_eosuser_path(args.outpath) and args.eoscp:
-    output_tools.copy_to_eos(args.outpath, args.outfolder)
+    output_tools.copy_to_eos(outdir, args.outpath, args.outfolder)

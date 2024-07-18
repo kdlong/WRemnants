@@ -123,7 +123,7 @@ def get_binning_fakes_pt(min_pt, max_pt):
     #edges = np.arange(min_pt,32.1,1.2)  
     #edges = np.append(edges, [e for e in [34.4, 38, 44, 56] if e<max_pt][:-1])
     #edges = np.append(edges, [max_pt])
-    #edges =  np.arange(min_pt,32,2)  
+    #edges = np.arange(min_pt,32,2)
     #edges = np.append(edges, [e for e in [32, 36, 40, 46, 56] if e<max_pt][:-1])
     #edges = np.append(edges, [max_pt])
     return edges
@@ -238,11 +238,11 @@ def set_subparsers(subparser, name, analysis_label):
         if analysis_label not in axmap:
             raise ValueError(f"Unknown analysis {analysis_label}!")
         subparser.add_argument("--genAxes", type=str, nargs="+", 
-                               default=axmap[analysis_label], choices=["qGen", "ptGen", "absEtaGen", "ptVGen", "absYVGen"],
+                               default=axmap[analysis_label], choices=["qGen", "ptGen", "absEtaGen", "ptVGen", "absYVGen", "helicitySig"],
                                help="Generator level variable")
         subparser.add_argument("--genLevel", type=str, default='postFSR', choices=["preFSR", "postFSR"],
                                help="Generator level definition for unfolding")
-        subparser.add_argument("--genBins", type=int, nargs="+", default=[18, 0] if "wlike" in analysis_label[0] else [16, 0],
+        subparser.add_argument("--genBins", type=int, nargs="+", default=[18, 0] if "wlike" in analysis_label else [16, 0],
                                help="Number of generator level bins")
         subparser.add_argument("--inclusive", action='store_true', help="No fiducial selection (mass window only)")
     elif "theoryAgnostic" in name:

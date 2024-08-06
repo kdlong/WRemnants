@@ -20,6 +20,13 @@ class TheoryHelper(object):
         self.card_tool = card_tool
         corr_hists = input_tools.args_from_metadata(self.card_tool, "theoryCorr")
         self.corr_hist_name = (corr_hists[0]+"Corr") if corr_hists else None
+        try:
+            if input_tools.args_from_metadata(self.card_tool, "theoryCorrCentralWeight") == 'first' and \
+                    "scetlib_dyturbo" not in self.corr_hist_name and any("scetlib_dyturbo" in x for x in corr_hists):
+                self.corr_hist_name = next(x for x in corr_hists if "scetlib_dyturbo" in x)+"Corr"
+                logger.warning(f"Using uncertainties from {self.corr_hist_name}")
+        except IOError as e:
+            logger.warning(e)
         self.syst_ax = "vars"
         self.corr_hist = None
         self.resumUnc = None
@@ -87,8 +94,11 @@ class TheoryHelper(object):
         if not self.corr_hist_name:
             raise ValueError("Cannot add resummation uncertainties. No theory correction was applied!")
 
-        if input_tools.args_from_metadata(self.card_tool, "theoryCorrAltOnly"):
-            raise ValueError("The theory correction was only applied as an alternate hist. Using it for systs isn't well defined!")
+        try:
+            if input_tools.args_from_metadata(self.card_tool, "theoryCorrCentralWeight") == "none":
+                raise ValueError("The theory correction was only applied as an alternate hist. Using it for systs isn't well defined!")
+        except IOError as e:
+            logger.warning(e)
 
         signal_samples = self.card_tool.procGroups['signal_samples']
         self.corr_hist = self.card_tool.getHistsForProcAndSyst(signal_samples[0], self.corr_hist_name)

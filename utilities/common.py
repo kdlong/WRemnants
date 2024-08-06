@@ -330,7 +330,9 @@ def common_parser(analysis_label=""):
     parser.add_argument("--theoryCorr", nargs="*", type=str, action=NoneFilterAction,
         default=["scetlib_dyturbo", "scetlib_dyturboCT18ZVars", "scetlib_dyturboCT18Z_pdfas"], choices=theory_corrections.valid_theory_corrections(), 
         help="Apply corrections from indicated generator. First will be nominal correction.")
-    parser.add_argument("--theoryCorrAltOnly", action='store_true', help="Save hist for correction hists but don't modify central weight")
+    parser.add_argument("--theoryCorrCentralWeight", choices=['nominal', 'first', 'none'], default='nominal', type=str, 
+            help="Modify the central weight with the theory correction: 'none': the central value isn't correted. 'nominal': the nominal hist takes the central value of the first corr. " \
+            "If 'first', all corrs have the first corr central value (so their uncertainties are usable)")
     parser.add_argument("--ewTheoryCorr", nargs="*", type=str, action=NoneFilterAction, choices=theory_corrections.valid_ew_theory_corrections(), 
         default=["renesanceEW", "powhegFOEW", "pythiaew_ISR", "horaceqedew_FSR", "horacelophotosmecoffew_FSR", ],
         help="Add EW theory corrections without modifying the default theoryCorr list. Will be appended to args.theoryCorr")

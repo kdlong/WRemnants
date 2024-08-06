@@ -54,7 +54,7 @@ def write_analysis_output(results, outfile, args):
     analysis_debug_output(results)
 
     to_append = []
-    if args.theoryCorr and not args.theoryCorrAltOnly:
+    if args.theoryCorr and args.theoryCorrCentralWeight != 'none':
         to_append.append(args.theoryCorr[0]+"Corr")
     if args.maxFiles is not None:
         to_append.append(f"maxFiles_{args.maxFiles}".replace("-","m"))

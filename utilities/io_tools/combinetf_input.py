@@ -65,7 +65,7 @@ def get_poi_names_root(rtfile, poi_type="mu"):
 
     return np.array(names)
 
-def get_pulls_and_constraints(fitresult_filename, labels):
+def get_pulls_and_constraints(fitresult_filename, labels, filters=[]):
     fitresult = ROOT.TFile.Open(fitresult_filename.replace(".hdf5",".root"))
     rtree = fitresult.Get("fitresults")
     rtree.GetEntry(0)
@@ -73,6 +73,9 @@ def get_pulls_and_constraints(fitresult_filename, labels):
     constraints = np.zeros_like(labels, dtype=float)
     pulls_prefit = np.zeros_like(labels, dtype=float)
     for i, label in enumerate(labels):
+        if filters and not any(re.match(f, label) for f in filters):
+            continue
+        print("Label", label, "passed filters", filters)
         if not hasattr(rtree, label):
             logger.warning(f"Failed to find syst {label} in tree")
             continue

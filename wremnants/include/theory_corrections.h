@@ -25,8 +25,13 @@ public:
     const tensor_t &get_tensor(const Xs&... xs) {
         return narf::get_value(*correctionHist_, xs...).data();
     }
-    tensor_t operator() (double x1, double x2, double x3, int x4, double nominal_weight) {
-        return nominal_weight*get_tensor(x1, x2, x3, x4);
+
+    tensor_t operator() (double x1, double x2, double x3, int x4, double nominal_weight, bool renorm) {
+        tensor_t corr = get_tensor(x1, x2, x3, x4);
+        if (renorm)
+            return nominal_weight*corr/corr(0);
+
+        return nominal_weight*corr;
     }
 
 
@@ -44,8 +49,12 @@ public:
     //inherit constructor
     using base_t::base_t;
 
-    tensor_t operator() (double x1, int charge, double nominal_weight) {
-        return nominal_weight*base_t::get_tensor(x1, charge);
+    tensor_t operator() (double x1, int charge, double nominal_weight, bool renorm) {
+        tensor_t corr = base_t::get_tensor(x1, charge);
+        if (renorm)
+            return nominal_weight*corr/corr(0);
+
+        return nominal_weight*corr;
     }
 };
 
@@ -60,8 +69,12 @@ public:
     //inherit constructor
     using base_t::base_t;
 
-    tensor_t operator() (double x1, double x2, int charge, double nominal_weight) {
-        return nominal_weight*base_t::get_tensor(x1, x2, charge);
+    tensor_t operator() (double x1, double x2, int charge, double nominal_weight, bool renorm) {
+        tensor_t corr = base_t::get_tensor(x1, x2, charge);
+        if (renorm)
+            return nominal_weight*corr/corr(0);
+
+        return nominal_weight*corr;
     }
 };
 
@@ -76,8 +89,12 @@ public:
     //inherit constructor
     using base_t::base_t;
 
-    tensor_t operator() (double x1, double x2, double x3, int charge, tensor_t nominal_weights) {
-        return nominal_weights*base_t::get_tensor(x1, x2, x3, charge);
+    tensor_t operator() (double x1, double x2, double x3, int charge, tensor_t nominal_weights, bool renorm) {
+        tensor_t corr = base_t::get_tensor(x1, x2, x3, charge);
+        if (renorm)
+            return nominal_weights*corr/corr(0);
+
+        return nominal_weights*corr;
     }
 };
 

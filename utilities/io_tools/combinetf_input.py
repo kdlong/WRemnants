@@ -65,7 +65,7 @@ def get_poi_names_root(rtfile, poi_type="mu"):
 
     return np.array(names)
 
-def get_pulls_and_constraints(fitresult_filename, labels):
+def get_pulls_and_constraints(fitresult_filename, labels, filters=[]):
     fitresult = ROOT.TFile.Open(fitresult_filename.replace(".hdf5",".root"))
     rtree = fitresult.Get("fitresults")
     rtree.GetEntry(0)
@@ -73,6 +73,9 @@ def get_pulls_and_constraints(fitresult_filename, labels):
     constraints = np.zeros_like(labels, dtype=float)
     pulls_prefit = np.zeros_like(labels, dtype=float)
     for i, label in enumerate(labels):
+        if filters and not any(re.match(f, label) for f in filters):
+            continue
+        print("Label", label, "passed filters", filters)
         if not hasattr(rtree, label):
             logger.warning(f"Failed to find syst {label} in tree")
             continue
@@ -282,6 +285,7 @@ def read_impacts_pois_h5(h5file, poi_type, group=True, uncertainties=None):
     return names, centrals, totals, uncertainties
 
 def read_impacts_pois_root(rtfile, poi_type, group=True, uncertainties=None):   
+    print(pdf_dfs)
     histname = f"nuisance_group_impact_{poi_type}" if group else f"nuisance_impact_{poi_type}"
     if f"{histname};1" not in rtfile.keys():
         logger.warning(f"Histogram {histname};1 not found in fitresult file")
@@ -383,4 +387,18 @@ def get_theoryfit_data(fitresult, axes, base_processes = ["W"], poi_type="pmaske
 
     return data, cov
 
+def read_groupunc_df(filename, uncs, rename={}):
+    ref_massw = 80377 #? double check...
+    ref_massz = 91187.6
+
+    fitresult = get_fitresult(filename)
+    df = read_impacts_pois(fitresult, poi_type="nois", group=True, uncertainties=uncs)
+
+    df.iloc[0,1:] = df.iloc[0,1:]*100
+    df.iloc[0,1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV_noi" else pdg_massw
+
+    if rename:
+        df.rename(columns=rename, inplace=True)
+
+    return df
 

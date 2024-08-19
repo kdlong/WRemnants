@@ -282,7 +282,7 @@ def readFitInfoFromFile(rf, filename, poi, group=False, grouping=None, filters=[
     df['label'] = [translate_label.get(l, l) for l in labels]
     df['absimpact'] = np.abs(df['impact'])
     if not group:
-        df["pull"], df["constraint"], df["pull_prefit"] = combinetf_input.get_pulls_and_constraints(filename, labels)
+        df["pull"], df["constraint"], df["pull_prefit"] = combinetf_input.get_pulls_and_constraints(filename, labels, filters)
         df["pull"] = df['pull'] - df["pull_prefit"]
         df['abspull'] = np.abs(df['pull'])
         df['newpull'] = df['pull'] / (1-df["constraint"]**2)**0.5
@@ -386,12 +386,12 @@ def producePlots(fitresult, args, poi, group=False, normalize=False, fitresult_r
         impact_title=poi
 
     if not (group and args.output_mode == 'output'):
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, stat=args.stat/100., normalize=normalize, scale=scale)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, False, stat=args.stat/100., filters=args.filters, normalize=normalize, scale=scale)
     elif group:
-        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, stat=args.stat/100., normalize=normalize, scale=scale, grouping=grouping)
+        df = readFitInfoFromFile(fitresult, args.inputFile, poi, True, stat=args.stat/100., filters=args.filters, normalize=normalize, scale=scale, grouping=grouping)
 
     if fitresult_ref:
-        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, stat=args.stat/100., normalize=normalize, scale=scale, grouping=grouping)
+        df_ref = readFitInfoFromFile(fitresult_ref, args.referenceFile, poi, group, stat=args.stat/100., filters=args.filters, normalize=normalize, scale=scale, grouping=grouping)
         df = df.merge(df_ref, how="outer", on="label", suffixes=("","_ref"))
     
         # Set default values for missing entries in respective columns

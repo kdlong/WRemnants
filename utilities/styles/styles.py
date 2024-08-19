@@ -23,9 +23,15 @@ process_colors = {
     "Fake": "#9C9CA1",
     "Fake_e": "#9C9CA1",
     "Fake_mu": "#9C9CA1",
+    "Prompt": "#E42536",
 }
 
 process_supergroups = {
+    "sv":{
+        "Prompt": ["Wmunu", "Wtaunu", "Ztautau", "Zmumu", "DYlowMass", "PhotonInduced", "Top", "Diboson"],
+        "Fake": ["Fake"],
+        "QCD": ["QCD"],
+    },
     "w_mass":{
         "Z": ["Ztautau", "Zmumu", "DYlowMass"],
         "Rare": ["PhotonInduced", "Top", "Diboson"],
@@ -55,11 +61,12 @@ process_labels = {
     "PhotonInduced": r"$\gamma$-induced",
     "Top": "Top",
     "Diboson": "Diboson",
-    "QCD": "QCD MC",
+    "QCD": "QCD MC (predicted)",
     "Other": "Other",
     "Fake": "Nonprompt",
     "Fake_e": "Nonprompt (e)",
     "Fake_mu": r"Nonprompt (\mu)",
+    "Prompt": "Prompt",
 }
 
 xlabels = {
@@ -108,12 +115,16 @@ common_groups = [
     "Total",
     "stat",
     "binByBinStat",
+    "statMC",
     "luminosity",
     "recoil",
     "CMS_background",
     "theory_ew",
     "normXsecW",
-    "width"
+    "width",
+    "ZmassAndWidth",
+    "massAndWidth",
+    "normXsecZ",
 ]
 nuisance_groupings = {
     "super":[
@@ -125,7 +136,6 @@ nuisance_groupings = {
         "muonCalibration",
     ],
     "max": common_groups + [
-        "massShift",
         "QCDscale", 
         "pdfCT18Z",
         "resum",
@@ -134,7 +144,19 @@ nuisance_groupings = {
         "prefire",
         "muonCalibration",
         "Fake",
-        "bcQuarkMass"
+        "bcQuarkMass",
+        # "normWplus_Helicity-1",
+        # "normWplus_Helicity0",
+        # "normWplus_Helicity1",
+        # "normWplus_Helicity2",
+        # "normWplus_Helicity3",
+        # "normWplus_Helicity4",
+        # "normWminus_Helicity-1",
+        # "normWminus_Helicity0",
+        # "normWminus_Helicity1",
+        # "normWminus_Helicity2",
+        # "normWminus_Helicity3",
+        # "normWminus_Helicity4"
     ],
     "min": common_groups + [
         "massShiftW", "massShiftZ",
@@ -149,10 +171,14 @@ nuisance_groupings = {
     ],
     "unfolding_max": [
         "Total",
+        "stat",
+        "binByBinStat",
+        "experiment",
         "QCDscale", 
         "pdfCT18Z",
         "resum",
         "theory_ew",
+        "bcQuarkMass",
     ],
     "unfolding_min": [
         "Total",
@@ -180,6 +206,9 @@ poi_types = {
     "sumpois": "d$\sigma$ [pb]",
     "pmaskedexpnorm": "1/$\sigma$ d$\sigma$",
     "sumpoisnorm": "1/$\sigma$ d$\sigma$",
+    "ratiometapois": "$\sigma(W^{+})/\sigma(W^{-})$",
+    "helpois": "Ai",
+    "helmetapois": "Ai",
 }
 
 axis_labels = {
@@ -270,6 +299,15 @@ def get_systematics_label(key, idx=0):
     if key in systematics_labels_idxs:
         return systematics_labels_idxs[key][idx]
 
+    if "helicity" in key.split("_")[-1]:
+        idx =int(key.split("_")[-1][-1])
+        if idx == 0:
+            label = "UL"
+        else:
+            label = str(idx-1)
+
+        return f"$\pm\sigma_\mathrm{{{label}}}$"        
+
     # default return key
     logger.info(f"No label found for {key}")
     return key
@@ -277,7 +315,7 @@ def get_systematics_label(key, idx=0):
 
 def get_labels_colors_procs_sorted(procs):
     # order of the processes in the plots
-    procs_sort = ["Wmunu", "Fake", "Zmumu", "Wtaunu", "Top", "DYlowMass", "Other", "Ztautau", "Diboson", "PhotonInduced"][::-1]
+    procs_sort = ["Wmunu", "Fake", "QCD", "Zmumu", "Wtaunu", "Top", "DYlowMass", "Other", "Ztautau", "Diboson", "PhotonInduced", "Prompt"][::-1]
 
     procs = sorted(procs, key=lambda x: procs_sort.index(x) if x in procs_sort else len(procs_sort))
     logger.info(f"Found processes {procs} in fitresult")

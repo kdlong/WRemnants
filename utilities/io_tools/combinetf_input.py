@@ -75,7 +75,6 @@ def get_pulls_and_constraints(fitresult_filename, labels, filters=[]):
     for i, label in enumerate(labels):
         if filters and not any(re.match(f, label) for f in filters):
             continue
-        print("Label", label, "passed filters", filters)
         if not hasattr(rtree, label):
             logger.warning(f"Failed to find syst {label} in tree")
             continue

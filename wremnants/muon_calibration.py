@@ -944,8 +944,9 @@ def add_jpsi_crctn_stats_unc_hists(
     args, df, axes, results, nominal_cols, nominal_cols_gen_smeared,
     calib_filepaths, jpsi_crctn_data_unc_helper, smearing_weights_procs, reco_sel_GF, dataset_name, isW, storage_type=hist.storage.Double()
 ):
-    df = df.DefinePerSample("bool_true", "true")
-    df = df.DefinePerSample("bool_false", "false")
+    if "bool_true" not in df.GetColumnNames():
+        df = df.DefinePerSample("bool_true", "true")
+        df = df.DefinePerSample("bool_false", "false")
 
     if args.muonScaleVariation == 'smearingWeightsGaus' or args.validationHists:
         smearing_weights_procs.append(dataset_name)

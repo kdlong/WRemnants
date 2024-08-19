@@ -36,7 +36,8 @@ class TheoryHelper(object):
         self.mirror_tnp = True
         self.minnlo_unc = 'byHelicityPt'
         self.skipFromSignal = False
-        self.args = args
+        self.muRmuFPolVar = args.muRmuFPolVar
+        self.include_quark_mass_vars = not args.noQuarkMassUnc
 
     def sample_label(self, sample_group):
         if sample_group not in self.card_tool.procGroups:
@@ -78,10 +79,11 @@ class TheoryHelper(object):
         self.add_nonpert_unc(model=self.np_model)
         self.add_resum_unc()
         self.add_pdf_uncertainty(operation=self.pdf_operation, scale=self.scale_pdf_unc)
-        try:
-            self.add_quark_mass_vars()
-        except ValueError as e:
-            logger.warning(e)
+        if self.include_quark_mass_vars:
+            try:
+                self.add_quark_mass_vars()
+            except ValueError as e:
+                logger.warning(e)
 
     def set_minnlo_unc(self, minnloUnc):
         self.minnlo_unc = minnloUnc
@@ -154,7 +156,7 @@ class TheoryHelper(object):
                     # two sets of nuisances, one binned in ~10% quantiles, and one inclusive in pt
                     # to avoid underestimating the correlated part of the uncertainty
                     # (but scale it down to avoid double counting)
-                    if self.args.muRmuFPolVar:
+                    if self.muRmuFPolVar:
                         # orthogonality of chebychev polynomials means that there is no
                         # double counting with fully correlated uncertainty
                         scale_inclusive = 1.
@@ -564,7 +566,7 @@ class TheoryHelper(object):
             processes=['wtau_samples', 'single_v_nonsig_samples'] if self.skipFromSignal else ['single_v_samples'],
             mirror=True if symHessian else False,
             group="course_"+pdfName,
-            splitGroup={f"standard_{pdfName}NoAlphaS": '.*', "course_theory": ".*"},
+            splitGroup={f"standard_{pdfName}NoAlphaS": '.*', f"standard_{pdfName}" : ".*", "course_theory": ".*"},
             passToFakes=self.propagate_to_fakes,
             preOpMap=operation,
             scale=pdfInfo.get("scale", 1)*scale,

@@ -128,11 +128,10 @@ nuisance_groupings = {
         "muonCalibration",
     ],
     "max": common_groups + [
-        "QCDscale", 
+        "standard_angularCoeffs", 
         "standard_pdfCT18Z",
         "standard_pTModeling",
-        "muon_eff_syst",
-        "muon_eff_stat",
+        "muon_eff_all",
         "prefire",
         "muonCalibration",
         "Fake",

@@ -609,3 +609,47 @@ def write_index_and_log(outpath, logname, template_dir=f"{pathlib.Path(__file__)
                 logf.write('\n'+'-'*80+"\n")
                 logf.write(json.dumps(analysis_info, indent=5).replace("\\n", "\n"))
         logger.info(f"Writing file {logname}")
+
+def make_summary_plot(centerline, center_unc, center_label, res_dfs, colors, labels, xlim, xlabel, out, outfolder, name, legend_loc="upper right"):
+    nentries = len(res_dfs)
+
+    if colors == "auto":
+        cmap = mpl.cm.get_cmap("tab10")
+        colors = [cmap(i) for i in range(nentries)]
+
+    if not all(len(x) == nentries for x in [colors, labels]):
+        raise ValueError(f"Length of values ({nentries}), colors ({len(colors)}), and labels ({len(labels)}) must be equal!")
+
+    fig, ax1 = figure(None, xlabel=xlabel, ylabel="",
+                    cms_label="Preliminary", 
+                    grid=True, automatic_scale=False, width_scale=1.5, 
+                    height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1])
+
+    ax1.plot([centerline, centerline], [0, nentries+1], linestyle="dashdot", marker="none", color="black", label=center_label)
+    ax1.fill_between([centerline-center_unc, centerline+center_unc], 0, nentries+1, color='gray', alpha=0.4)
+
+    for i, (df,c,l) in enumerate(zip(res_dfs, colors, labels)):
+        # Use for spacing purposes
+        if df is None:
+            continue
+        
+        vals = df.iloc[0,1:].values
+        u = vals[1:]
+        # Lazy way to arrange the legend properly
+        ax1.errorbar([vals[0]], [i+1], xerr=u[0], linestyle="", linewidth=3, marker="o", color=cmap(i), label=l)
+        ax1.errorbar([vals[0]], [i+1], xerr=u[0], linestyle="", linewidth=3, marker="o", color=cmap(i), capsize=10)
+        if len(u) > 1:
+            ax1.errorbar([vals[0]], [i+1], xerr=u[1], linestyle="", linewidth=3, marker="o", color=cmap(i), capsize=10)
+
+    addLegend(ax1, ncols=1, text_size=12, loc=legend_loc)
+    ax1.minorticks_off()
+    ax1.set_yticklabels([])
+    ax1.xaxis.set_major_locator(ticker.LinearLocator(numticks=5))
+    eoscp = "/eos" in out[:4]
+    outdir = output_tools.make_plot_dir(out, outfolder, eoscp=eoscp)
+    save_pdf_and_png(outdir, name, fig)
+    write_index_and_log(outdir, name)
+    if eoscp:
+        output_tools.copy_to_eos(outdir, out, outfolder, deleteFullTmp=True)
+    return fig
+    

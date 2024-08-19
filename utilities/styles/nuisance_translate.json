@@ -1,4 +1,5 @@
 {
+    "standard_angularCoeffs": "Angular Coeffs.",
     "fine_QCDscale": "$\\mu_\\mathrm{R} \\mu_\\mathrm{F} \\ \\mathrm{scale}$",
     "QCDscaleZMiNNLO": "$\\mu_\\mathrm{R} \\mu_\\mathrm{F} \\ \\mathrm{scale (Z)}$",
     "QCDscaleWMiNNLO": "$\\mu_\\mathrm{R} \\mu_\\mathrm{F} \\ \\mathrm{scale (W)}$",
@@ -26,9 +27,9 @@
     "standard_pdfMSHT20": "PDF",
     "standard_pdfCT18Z": "PDF",
     "fine_pdfMSHT20NoAlphaS": "PDF",
-    "fine_pdfMSHT20AlphaS": "$\\alpha_\\mathrm{S} \\ \\mathrm{PDF}$",
-    "standard_pdfCT18ZAlphaS": "$\\alpha_\\mathrm{S} \\ \\mathrm{PDF}$",
-    "standard_pTModeling": "$p_{\\mathrm{T}}^{\\mathrm{V}} \\ \\mathrm{modelling}$",
+    "fine_pdfMSHT20AlphaS": "$\\alpha_\\mathrm{S}",
+    "standard_pdfCT18ZAlphaS": "$\\mathrm{PDF}$+\\alpha_\\mathrm{S}$",
+    "standard_pTModeling": "$p_{\\mathrm{T}}^{\\mathrm{V}}$ modelling$",
     "fine_resumTNP": "SCETlib TNP",
     "fine_resumNonpert": "Non pert.",
     "muonCalibration": "Muon calibration",
@@ -37,6 +38,7 @@
     "resolutionCrctn": "Muon resolution",
     "muon_eff_stat": "$\\epsilon^{\\mu}_\\mathrm{stat}$",
     "muon_eff_syst": "$\\epsilon^{\\mu}_\\mathrm{syst}$",
+    "muon_eff_all": "$\\epsilon^{\\mu}$",
     "prefire": "L1 prefire",
     "muonPrefire": "L1 muon prefire",
     "ecalPrefire": "L1 ecal prefire",
@@ -50,7 +52,8 @@
     "widthZ": "Z width",
     "fine_bcQuarkMass" : "b,c quark masses",
     "experiment": "Experiment",
-    "theory": "Theory"
+    "theory": "Theory",
+    "course_theory": "Theory"
 }
 
 

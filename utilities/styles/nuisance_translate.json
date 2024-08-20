@@ -29,7 +29,7 @@
     "fine_pdfMSHT20NoAlphaS": "PDF",
     "fine_pdfMSHT20AlphaS": "$\\alpha_\\mathrm{S}",
     "standard_pdfCT18ZAlphaS": "$\\mathrm{PDF}$+\\alpha_\\mathrm{S}$",
-    "standard_pTModeling": "$p_{\\mathrm{T}}^{\\mathrm{V}}$ modelling",
+    "standard_pTModeling": "$p_{\\mathrm{T}}^{\\mathrm{V}} \\ \\mathrm{modelling}$",
     "fine_resumTNP": "SCETlib TNP",
     "fine_resumNonpert": "Non pert.",
     "muonCalibration": "Muon calibration",

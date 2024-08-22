@@ -817,24 +817,24 @@ def setup(args, inputFile, inputBaseName, inputLumiScale, fitvar, genvar=None, x
 
                 return hvar
 
-            for axesToDecorrNames in [[], ]:
-                for idx, mag in [(1,0.1),(2,0.1),]:
-                    subgroup = f"{cardTool.getFakeName()}Param{idx}"
-                    cardTool.addSystematic(
-                        name=inputBaseName, 
-                        group="Fake",
-                        rename=subgroup+ (f"_{'_'.join(axesToDecorrNames)}" if len(axesToDecorrNames) else ""),
-                        splitGroup = {subgroup: f".*", "experiment": ".*"},
-                        systNamePrepend=subgroup,
-                        processes=cardTool.getFakeName(),
-                        noConstraint=False,
-                        mirror=True,
-                        scale=1,
-                        applySelection=False, # don't apply selection, external parameters need to be added
-                        action=fake_nonclosure,
-                        actionArgs=dict(axesToDecorrNames=axesToDecorrNames, param_idx=idx, variation_size=mag),
-                        systAxes=["var"] if len(axesToDecorrNames)==0 else [f"{n}_decorr" for n in axesToDecorrNames],
-                    )
+            #for axesToDecorrNames in [[], ]:
+            #    for idx, mag in [(1,0.1),(2,0.1),]:
+            #        subgroup = f"{cardTool.getFakeName()}Param{idx}"
+            #        cardTool.addSystematic(
+            #            name=inputBaseName, 
+            #            group="Fake",
+            #            rename=subgroup+ (f"_{'_'.join(axesToDecorrNames)}" if len(axesToDecorrNames) else ""),
+            #            splitGroup = {subgroup: f".*", "experiment": ".*"},
+            #            systNamePrepend=subgroup,
+            #            processes=cardTool.getFakeName(),
+            #            noConstraint=False,
+            #            mirror=True,
+            #            scale=1,
+            #            applySelection=False, # don't apply selection, external parameters need to be added
+            #            action=fake_nonclosure,
+            #            actionArgs=dict(axesToDecorrNames=axesToDecorrNames, param_idx=idx, variation_size=mag),
+            #            systAxes=["var"] if len(axesToDecorrNames)==0 else [f"{n}_decorr" for n in axesToDecorrNames],
+            #        )
 
     if not args.noEfficiencyUnc:
 

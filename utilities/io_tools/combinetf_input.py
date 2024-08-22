@@ -387,14 +387,14 @@ def get_theoryfit_data(fitresult, axes, base_processes = ["W"], poi_type="pmaske
     return data, cov
 
 def read_groupunc_df(filename, uncs, rename={}):
-    ref_massw = 80377 #? double check...
+    ref_massw = 80379 
     ref_massz = 91187.6
 
     fitresult = get_fitresult(filename)
     df = read_impacts_pois(fitresult, poi_type="nois", group=True, uncertainties=uncs)
 
     df.iloc[0,1:] = df.iloc[0,1:]*100
-    df.iloc[0,1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV_noi" else pdg_massw
+    df.iloc[0,1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV_noi" else ref_massw
 
     if rename:
         df.rename(columns=rename, inplace=True)

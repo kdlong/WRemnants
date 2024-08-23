@@ -9,6 +9,7 @@ from narf import ioutils
 import ROOT
 import uproot
 import pandas as pd
+import itertools
 import re
 
 logger = logging.child_logger(__name__)
@@ -284,7 +285,6 @@ def read_impacts_pois_h5(h5file, poi_type, group=True, uncertainties=None):
     return names, centrals, totals, uncertainties
 
 def read_impacts_pois_root(rtfile, poi_type, group=True, uncertainties=None):   
-    print(pdf_dfs)
     histname = f"nuisance_group_impact_{poi_type}" if group else f"nuisance_impact_{poi_type}"
     if f"{histname};1" not in rtfile.keys():
         logger.warning(f"Histogram {histname};1 not found in fitresult file")
@@ -386,7 +386,7 @@ def get_theoryfit_data(fitresult, axes, base_processes = ["W"], poi_type="pmaske
 
     return data, cov
 
-def read_groupunc_df(filename, uncs, rename={}):
+def read_groupunc_df(filename, uncs, rename_cols={}, name=None):
     ref_massw = 80379 
     ref_massz = 91187.6
 
@@ -396,8 +396,15 @@ def read_groupunc_df(filename, uncs, rename={}):
     df.iloc[0,1:] = df.iloc[0,1:]*100
     df.iloc[0,1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV_noi" else ref_massw
 
-    if rename:
+    if rename_cols:
         df.rename(columns=rename, inplace=True)
+    if name:
+        df.loc[0, "Name"] = name
 
     return df
 
+def read_all_groupunc_df(filenames, uncs, rename_cols={}, names=[]):
+    dfs = [read_groupunc_df(f, uncs, rename_cols, n) for f,n in itertools.zip_longest(filenames, names)]
+
+    return pd.concat(dfs)
+    

@@ -38,7 +38,7 @@ def cfgFigure(href, xlim=None, bin_density = 300,  width_scale=1, automatic_scal
 def figure(href, xlabel, ylabel, ylim=None, xlim=None,
     grid = False, plot_title = None, title_padding = 0,
     bin_density = 300, cms_label = None, logy=False, logx=False,
-    width_scale=1, height=8, automatic_scale=True
+    width_scale=1, height=8, automatic_scale=True, cms_loc=1, fontsize=24,
 ):
     if isinstance(href, hist.Hist):
         fig, xlim = cfgFigure(href, xlim, bin_density, width_scale, automatic_scale)
@@ -51,7 +51,7 @@ def figure(href, xlabel, ylabel, ylim=None, xlim=None,
         fig = plt.figure(figsize=(width_scale*height*width,height))
 
     ax1 = fig.add_subplot() 
-    if cms_label: hep.cms.text(cms_label)
+    if cms_label: hep.cms.text(cms_label, loc=cms_loc, fontsize=fontsize)
 
     ax1.set_xlabel(xlabel)
     ax1.set_ylabel(ylabel)
@@ -115,7 +115,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
     else:
         return fig,ax2
 
-def addLegend(ax, ncols=2, extra_text=None, extra_text_loc=(0.8, 0.7), text_size=20, loc='upper right'):
+def addLegend(ax, ncols=2, extra_text=None, extra_text_loc=(0.8, 0.7), text_size=20, loc='upper right', reverse=False):
     handles, labels = ax.get_legend_handles_labels()
     
     shape = np.divide(*ax.get_figure().get_size_inches())
@@ -126,7 +126,7 @@ def addLegend(ax, ncols=2, extra_text=None, extra_text_loc=(0.8, 0.7), text_size
         handles.insert(math.floor(len(handles)/2), patches.Patch(color='none', label = ' '))
         labels.insert(math.floor(len(labels)/2), ' ')
     text_size = text_size*(0.7 if shape == 1 else 1.3)
-    leg = ax.legend(handles=handles, labels=labels, prop={'size' : text_size}, ncol=ncols, loc=loc)
+    leg = ax.legend(handles=handles, labels=labels, prop={'size' : text_size}, ncol=ncols, loc=loc, reverse=reverse)
 
     if extra_text:
         p = leg.get_frame()
@@ -628,57 +628,58 @@ def write_index_and_log(outpath, logname, template_dir=f"{pathlib.Path(__file__)
                 logf.write(json.dumps(analysis_info, indent=5).replace("\\n", "\n"))
         logger.info(f"Writing file {logname}")
 
-def make_summary_plot(centerline, center_unc, center_label, res_dfs, colors, labels, xlim, xlabel, out, outfolder, name, 
-                      legend_loc="upper right", double_colors=False, scale_leg=1):
-    nentries = len(res_dfs)
+def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xlabel, out, outfolder, name, 
+                      legend_loc="upper right", double_colors=False, scale_leg=1, capsize=10, fontsize=24, width_scale=1.5):
+    nentries = len(df)
 
     # This code makes me feel like an idiot by I can't think of a better way to do it
     if colors == "auto":
-        colors = ["black"]*nentries
         cmap = mpl.cm.get_cmap("tab10")
-        i = 0
-        j = 0
-        used = 0
-        for l in labels:
-            if l is not None:
-                colors[i] = cmap(j)
-                if double_colors:
-                    used += 1
-                    if used > 1:
-                        j += 1
-                        used = 0
-                else:
-                    j += 1
-            i += 1
+        colors = [cmap(i) for i in range(len(df))]
+        print(colors)
+        #colors = ["black"]*nentries
+        #i = 0
+        #j = 0
+        #used = 0
+        #for l in labels:
+        #    if l is not None:
+        #        colors[i] = cmap(j)
+        #        if double_colors:
+        #            used += 1
+        #            if used > 1:
+        #                j += 1
+        #                used = 0
+        #        else:
+        #            j += 1
+        #    i += 1
 
-    if not all(len(x) == nentries for x in [colors, labels]):
-        raise ValueError(f"Length of values ({nentries}), colors ({len(colors)}), and labels ({len(labels)}) must be equal!")
+    if len(colors) != nentries:
+        raise ValueError(f"Length of values ({nentries}) and colors must be equal!")
 
     fig, ax1 = figure(None, xlabel=xlabel, ylabel="",
                     cms_label="Preliminary", 
-                    grid=True, automatic_scale=False, width_scale=1.5, 
-                    height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1])
+                    grid=True, automatic_scale=False, width_scale=width_scale, 
+                    height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1], cms_loc=2, fontsize=fontsize)
 
     ax1.plot([centerline, centerline], [0, nentries+1], linestyle="dashdot", marker="none", color="black", label=center_label)
     ax1.fill_between([centerline-center_unc, centerline+center_unc], 0, nentries+1, color='gray', alpha=0.4)
 
-    for i, (df,c,l) in enumerate(zip(res_dfs, colors, labels)):
+    for i, (x, row) in enumerate(df.iterrows()):
         # Use for spacing purposes
-        if df is None:
-            continue
+        #if df is None:
+        #    continue
 
-        print("For lable", l, "color is", c)
-        
-        vals = df.iloc[0,1:].values
+        vals = row.iloc[1:].values
         u = vals[1:]
+        pos = nentries-i
         # Lazy way to arrange the legend properly
-        ax1.errorbar([vals[0]], [i+1], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], label=l)
-        ax1.errorbar([vals[0]], [i+1], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=10)
+        ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], label=row.loc["Name"])
+        ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=capsize)
         if len(u) > 1:
-            ax1.errorbar([vals[0]], [i+1], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=10)
+            ax1.errorbar([vals[0]], [pos], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=capsize)
 
-    # TODO: scale the text in case of many entries
-    addLegend(ax1, ncols=1, text_size=12*scale_leg, loc=legend_loc)
+    if legend_loc is not None:
+        addLegend(ax1, ncols=1, text_size=12*scale_leg, loc=legend_loc, reverse=True)
     ax1.minorticks_off()
     ax1.set_yticklabels([])
     ax1.xaxis.set_major_locator(ticker.LinearLocator(numticks=5))
@@ -687,6 +688,7 @@ def make_summary_plot(centerline, center_unc, center_label, res_dfs, colors, lab
     save_pdf_and_png(outdir, name, fig)
     write_index_and_log(outdir, name)
     if eoscp:
-        output_tools.copy_to_eos(outdir, out, outfolder, deleteFullTmp=True)
+        output_tools.copy_to_eos(outdir, out, outfolder)
     return fig
     
+

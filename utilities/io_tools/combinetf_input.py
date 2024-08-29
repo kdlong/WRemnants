@@ -397,7 +397,7 @@ def read_groupunc_df(filename, uncs, rename_cols={}, name=None):
     df.iloc[0,1] += ref_massz if df.loc[0, "Name"] == "massShiftZ100MeV_noi" else ref_massw
 
     if rename_cols:
-        df.rename(columns=rename, inplace=True)
+        df.rename(columns=rename_cols, inplace=True)
     if name:
         df.loc[0, "Name"] = name
 

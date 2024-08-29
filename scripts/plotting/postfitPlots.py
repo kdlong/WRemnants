@@ -76,7 +76,7 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
     if any(x in axes_names for x in ["ptll", "mll", "ptVgen", "ptVGen"]):
         # in case of variable bin width normalize to unit
         binwnorm = 1.0
-        ylabel="Events/unit"
+        ylabel="Events/GeV"
     else:
         binwnorm = None
         ylabel="Events/bin"
@@ -114,7 +114,7 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
     else:
         xlabel=f"{'-'.join([styles.xlabels.get(s,s).replace('(GeV)','') for s in axes_names])} bin"
     if ratio:
-        fig, ax1, ax2 = plot_tools.figureWithRatio(h_data, xlabel, ylabel, args.ylim, f"1/Pred.", args.rrange)
+        fig, ax1, ax2 = plot_tools.figureWithRatio(h_data, xlabel, ylabel, args.ylim, f"Data/Pred.", args.rrange)
     else:
         fig, ax1 = plot_tools.figure(h_data, xlabel, ylabel, args.ylim)
 
@@ -168,7 +168,8 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
                 label=args.dataName,
                 yerr=True,
                 linewidth=2,
-                ax=ax2
+                ax=ax2,
+                flow='none',
             )
 
             # for uncertaity bands
@@ -203,24 +204,25 @@ def make_plot(h_data, h_inclusive, h_stack, axes, colors=None, labels=None, suff
         else:
             chi2_name = "\chi^2/ndf"
         if len(h_data.values())<100:
-            plt.text(0.05, 0.94, f"${chi2_name}$", horizontalalignment='left', verticalalignment='top', transform=ax1.transAxes,
+            plt.text(0.55, 0.74, f"${chi2_name}$", horizontalalignment='left', verticalalignment='top', transform=ax1.transAxes,
                 fontsize=fontsize)  
-            plt.text(0.05, 0.86, f"$= {round(chi2[0],1)}/{chi2[1]} (p={p_val}\%)$", horizontalalignment='left', verticalalignment='top', transform=ax1.transAxes,
+            plt.text(0.55, 0.66, f"$= {round(chi2[0],1)}/{chi2[1]} (p={p_val}\%)$", horizontalalignment='left', verticalalignment='top', transform=ax1.transAxes,
                 fontsize=fontsize)  
         else:
             plt.text(0.05, 0.94, f"${chi2_name} = {round(chi2[0],1)}/{chi2[1]} (p={p_val}\%)$", horizontalalignment='left', verticalalignment='top', transform=ax1.transAxes,
                 fontsize=fontsize)
 
-    if args.noSci:
+    if args.noSciy:
         plot_tools.redo_axis_ticks(ax1, "x")
         plot_tools.redo_axis_ticks(ax2, "x")
 
     hep.cms.label(ax=ax1, lumi=float(f"{lumi:.3g}") if lumi is not None and args.dataName=="Data" and not args.noData else None, 
         fontsize=fontsize, 
-        label=args.cmsDecor, data=data)
+        label=args.cmsDecor, data=data,
+        loc=1 if args.noSciy else 2)
 
     if len(h_stack) < 10:
-        plot_tools.addLegend(ax1, ncols=np.ceil(len(h_stack)/3), text_size=fontsize)
+        plot_tools.addLegend(ax1, ncols=np.ceil(len(h_stack)/3), text_size=fontsize*1.2)
     plot_tools.fix_axes(ax1, ax2, yscale=args.yscale, noSci=args.noSciy)
 
     to_join = [fittype, args.postfix, axis_name, suffix]

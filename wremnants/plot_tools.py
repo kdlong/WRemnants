@@ -94,7 +94,7 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
         if grid_on_main_plot:  ax1.grid(which = "both")
         if plot_title: ax1.set_title(plot_title, pad = title_padding)
 
-    if cms_label: hep.cms.text(cms_label)
+    if cms_label: hep.cms.text(cms_label, loc=logoPos)
     ax2 = fig.add_subplot(4, 1, 4) 
 
     ax2.set_xlabel(xlabel)
@@ -629,37 +629,22 @@ def write_index_and_log(outpath, logname, template_dir=f"{pathlib.Path(__file__)
         logger.info(f"Writing file {logname}")
 
 def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xlabel, out, outfolder, name, 
-                      legend_loc="upper right", double_colors=False, scale_leg=1, capsize=10, fontsize=24, width_scale=1.5):
-    nentries = len(df)
+                      legend_loc="upper right", double_colors=False, scale_leg=1, capsize=10, fontsize=24, width_scale=1.5, 
+                      offset=0, center_colors=None):
+    nentries = len(df)+offset
 
     # This code makes me feel like an idiot by I can't think of a better way to do it
     if colors == "auto":
         cmap = mpl.cm.get_cmap("tab10")
         colors = [cmap(i) for i in range(len(df))]
-        print(colors)
-        #colors = ["black"]*nentries
-        #i = 0
-        #j = 0
-        #used = 0
-        #for l in labels:
-        #    if l is not None:
-        #        colors[i] = cmap(j)
-        #        if double_colors:
-        #            used += 1
-        #            if used > 1:
-        #                j += 1
-        #                used = 0
-        #        else:
-        #            j += 1
-        #    i += 1
 
-    if len(colors) != nentries:
+    if len(colors) != len(df):
         raise ValueError(f"Length of values ({nentries}) and colors must be equal!")
 
     fig, ax1 = figure(None, xlabel=xlabel, ylabel="",
                     cms_label="Preliminary", 
                     grid=True, automatic_scale=False, width_scale=width_scale, 
-                    height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1], cms_loc=2, fontsize=fontsize)
+                    height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1], logoPos=2, fontsize=fontsize)
 
     ax1.plot([centerline, centerline], [0, nentries+1], linestyle="dashdot", marker="none", color="black", label=center_label)
     ax1.fill_between([centerline-center_unc, centerline+center_unc], 0, nentries+1, color='gray', alpha=0.4)
@@ -671,12 +656,12 @@ def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xl
 
         vals = row.iloc[1:].values
         u = vals[1:]
-        pos = nentries-i
+        pos = nentries-i-offset
         # Lazy way to arrange the legend properly
         ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], label=row.loc["Name"])
         ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=capsize)
         if len(u) > 1:
-            ax1.errorbar([vals[0]], [pos], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=capsize)
+            ax1.errorbar([vals[0]], [pos], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i] if not center_colors else center_colors[i], capsize=capsize)
 
     if legend_loc is not None:
         addLegend(ax1, ncols=1, text_size=12*scale_leg, loc=legend_loc, reverse=True)

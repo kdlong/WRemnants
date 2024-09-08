@@ -351,6 +351,7 @@ def makeStackPlotWithRatio(
     addLegend(ax1, nlegcols, extra_text=extra_text, extra_text_loc=extra_text_loc, text_size=legtext_size)
     fix_axes(ax1, ax2, yscale=yscale, logy=logy, noSci=noSci)
 
+    print("cms_decor", cms_decor, "done")
     if cms_decor:
         lumi = float(f"{lumi:.3g}") if not density else None
         scale = max(1, np.divide(*ax1.get_figure().get_size_inches())*0.3)
@@ -630,7 +631,8 @@ def write_index_and_log(outpath, logname, template_dir=f"{pathlib.Path(__file__)
 
 def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xlabel, out, outfolder, name, 
                       legend_loc="upper right", double_colors=False, scale_leg=1, capsize=10, fontsize=24, width_scale=1.5, 
-                      offset=0, center_colors=None):
+                      center_color="black",
+                      offset=0, point_center_colors=None):
     nentries = len(df)+offset
 
     # This code makes me feel like an idiot by I can't think of a better way to do it
@@ -646,8 +648,8 @@ def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xl
                     grid=True, automatic_scale=False, width_scale=width_scale, 
                     height=4+0.24*nentries, xlim=xlim, ylim=[0, nentries+1], logoPos=2, fontsize=fontsize)
 
-    ax1.plot([centerline, centerline], [0, nentries+1], linestyle="dashdot", marker="none", color="black", label=center_label)
-    ax1.fill_between([centerline-center_unc, centerline+center_unc], 0, nentries+1, color='gray', alpha=0.4)
+    ax1.plot([centerline, centerline], [0, nentries+1], linestyle="dashdot", marker="none", color=center_color, label=center_label)
+    ax1.fill_between([centerline-center_unc, centerline+center_unc], 0, nentries+1, color="grey", alpha=0.2)
 
     for i, (x, row) in enumerate(df.iterrows()):
         # Use for spacing purposes
@@ -661,7 +663,7 @@ def make_summary_plot(centerline, center_unc, center_label, df, colors, xlim, xl
         ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], label=row.loc["Name"])
         ax1.errorbar([vals[0]], [pos], xerr=u[0], linestyle="", linewidth=3, marker="o", color=colors[i], capsize=capsize)
         if len(u) > 1:
-            ax1.errorbar([vals[0]], [pos], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i] if not center_colors else center_colors[i], capsize=capsize)
+            ax1.errorbar([vals[0]], [pos], xerr=u[1], linestyle="", linewidth=3, marker="o", color=colors[i] if not point_center_colors else point_center_colors[i], capsize=capsize)
 
     if legend_loc is not None:
         addLegend(ax1, ncols=1, text_size=12*scale_leg, loc=legend_loc, reverse=True)

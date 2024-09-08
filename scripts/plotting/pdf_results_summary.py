@@ -7,8 +7,11 @@ parser = argparse.ArgumentParser()
 parser = common.plot_parser()
 parser.add_argument("-r", "--reffile", required=True, type=str, help="Combine fitresult file for nominal result")
 parser.add_argument("-i", "--reffileinf", required=False, type=str, help="Combine fitresult file for inflated result")
-parser.add_argument("--pdfs", default=["ct18z", "ct18", "herapdf20",  "msht20",  "msht20an3lo",  "nnpdf31",  "nnpdf40",  "pdf4lhc21"],
+#parser.add_argument("--pdfs", default=["ct18z", "ct18", "herapdf20",  "msht20",  "msht20an3lo",  "nnpdf31",  "nnpdf40",  "pdf4lhc21"],
+parser.add_argument("--pdfs", default=["ct18z", "ct18", "nnpdf40",  "msht20an3lo",  "nnpdf31",  "msht20",  "pdf4lhc21"],
     type=str, help="PDF to plot")
+parser.add_argument("--colors", type=str, nargs="+", help="Colors for PDFs",
+	default=["#E42536", "#2ca02c", "#9467bd", "#7f7f7f", "#8c564b", "#e377c2", "#17becf", ] )
 parser.add_argument("--print", action='store_true', help="Print results")
 
 args = parser.parse_args()
@@ -36,9 +39,12 @@ if args.print:
     for k,v in pdf_dfs.iterrows():
         print(round(v.iloc[1], 1), round(v.iloc[3], 1) , round(v.iloc[2], 1))
 
-plot_tools.make_summary_plot(ref_mass, ref_unc, "EW fit",
-    pdf_dfs,
-    colors="auto",
+central = pdf_dfs.iloc[0,:]
+
+plot_tools.make_summary_plot(central["value"], central["err_pdf"], central['Name'], 
+    pdf_dfs.iloc[1:,:],
+    colors=args.colors[1:] if args.colors[0] != "auto" else args.colors[0],
+    center_color="black" if args.colors[0] == "auto" else args.colors[0],
     xlim=[91160, 91220] if not isW else [80300, 80440],
     xlabel="$m_{Z}$ (MeV)" if not isW else "$m_{W}$ (MeV)",
     out=args.outpath, outfolder=args.outfolder, name=outname,

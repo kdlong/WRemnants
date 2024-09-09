@@ -1,4 +1,4 @@
-from utilities import logging
+from utilities import logging, boostHistHelpers as hh 
 
 logger = logging.child_logger(__name__)
 
@@ -33,10 +33,14 @@ process_supergroups = {
         "QCD": ["QCD"],
     },
     "w_mass":{
+        "Wmunu": ["Wmunu"], 
+        "Wtaunu": ["Wtaunu"],
         "Z": ["Ztautau", "Zmumu", "DYlowMass"],
+        "Fake": ["Fake"],
         "Rare": ["PhotonInduced", "Top", "Diboson"],
     },
     "z_dilepton":{
+        "Zmumu": ["Zmumu"],
         "Other": ["Other","PhotonInduced", "Ztautau"],
     },
     "w_lowpu":{
@@ -115,7 +119,6 @@ common_groups = [
     "Total",
     "stat",
     "binByBinStat",
-    "statMC",
     "luminosity",
     "recoil",
     "CMS_background",
@@ -131,6 +134,7 @@ nuisance_groupings = {
         "Total",
         "stat",
         "binByBinStat",
+<<<<<<< HEAD
         "course_theory", 
         "experiment",
         "muonCalibration",
@@ -155,10 +159,50 @@ nuisance_groupings = {
         # "normWminus_Helicity2",
         # "normWminus_Helicity3",
         # "normWminus_Helicity4"
+=======
+        "theory", 
+        "expNoCalib",
+        "muonCalibration",
+    ],
+    "max": common_groups + [
+        "angularCoeffs", 
+        "pdfCT18Z",
+        "pTModeling",
+        "muon_eff_syst",
+        "muon_eff_stat",
+        "prefire",
+        "muonCalibration",
+        "Fake",
+        "normWplus_Helicity-1",
+        "normWplus_Helicity0",
+        "normWplus_Helicity1",
+        "normWplus_Helicity2",
+        "normWplus_Helicity3",
+        "normWplus_Helicity4",
+        "normWminus_Helicity-1",
+        "normWminus_Helicity0",
+        "normWminus_Helicity1",
+        "normWminus_Helicity2",
+        "normWminus_Helicity3",
+        "normWminus_Helicity4",
+        "normW_Helicity-1",
+        "normW_Helicity0",
+        "normW_Helicity1",
+        "normW_Helicity2",
+        "normW_Helicity3",
+        "normW_Helicity4",
+        "normZ",
+        "normZ_Helicity-1",
+        "normZ_Helicity0",
+        "normZ_Helicity1",
+        "normZ_Helicity2",
+        "normZ_Helicity3",
+        "normZ_Helicity4",
     ],
     "min": common_groups + [
         "massShiftW", "massShiftZ",
         "QCDscalePtChargeMiNNLO", "QCDscaleZPtChargeMiNNLO", "QCDscaleWPtChargeMiNNLO", "QCDscaleZPtHelicityMiNNLO", "QCDscaleWPtHelicityMiNNLO", "QCDscaleZPtChargeHelicityMiNNLO", "QCDscaleWPtChargeHelicityMiNNLO",
+        "pythia_shower_kt",
         "fine_pdfCT18ZNoAlphaS", "fine_pdfCT18ZAlphaS",
         "fine_resumTNP", "fine_resumNonpert", "fine_resumTransitionFOScale", "fine_resumScale", "fine_bcQuarkMass",
         "muon_eff_stat_reco", "muon_eff_stat_trigger", "muon_eff_stat_iso", "muon_eff_stat_idip",
@@ -171,6 +215,8 @@ nuisance_groupings = {
         "Total",
         "stat",
         "binByBinStat",
+        "binByBinStatW",
+        "binByBinStatZ",
         "experiment",
         "QCDscale", 
         "standard_pdfCT18Z",
@@ -179,8 +225,13 @@ nuisance_groupings = {
     ],
     "unfolding_min": [
         "Total",
+        "stat",
+        "binByBinStatW",
+        "binByBinStat",
+        "binByBinStatZ",
+        "experiment",
         "QCDscalePtChargeMiNNLO", "QCDscaleZPtChargeMiNNLO", "QCDscaleWPtChargeMiNNLO", "QCDscaleZPtHelicityMiNNLO", "QCDscaleWPtHelicityMiNNLO", "QCDscaleZPtChargeHelicityMiNNLO", "QCDscaleWPtChargeHelicityMiNNLO",
-        "QCDscaleZMiNNLO", "QCDscaleWMiNNLO",
+        "QCDscaleZMiNNLO", "QCDscaleWMiNNLO", "pythia_shower_kt",
         "fine_pdfCT18ZNoAlphaS", "fine_pdfCT18ZAlphaS",
         "fine_resumTNP", "fine_resumNonpert", "fine_resumTransitionFOScale", "fine_resumScale", "fine_bcQuarkMass",
         "theory_ew",
@@ -311,11 +362,28 @@ def get_systematics_label(key, idx=0):
 
 
 def get_labels_colors_procs_sorted(procs):
-    # order of the processes in the plots
-    procs_sort = ["Wmunu", "Fake", "QCD", "Zmumu", "Wtaunu", "Top", "DYlowMass", "Other", "Ztautau", "Diboson", "PhotonInduced", "Prompt"][::-1]
+    # order of the processes in the plots by this list
+    procs_sort = ["Wmunu", "Fake", "QCD", "Z","Zmumu", "Wtaunu", "Top", "DYlowMass", "Other", "Ztautau", "Diboson", "PhotonInduced", "Prompt", "Rare"][::-1]
 
     procs = sorted(procs, key=lambda x: procs_sort.index(x) if x in procs_sort else len(procs_sort))
     logger.info(f"Found processes {procs} in fitresult")
     labels = [process_labels.get(p, p) for p in procs]
     colors = [process_colors.get(p, "red") for p in procs]
     return labels, colors, procs
+
+def process_grouping(grouping, hist_stack, procs):
+    if grouping in process_supergroups.keys():
+        new_stack = {}
+        for new_name, old_procs in process_supergroups[grouping].items():
+            stacks = [hist_stack[procs.index(p)] for p in old_procs if p in procs]
+            if len(stacks) == 0:
+                continue
+            new_stack[new_name] = hh.sumHists(stacks)  
+    else:
+        new_stack = hist_stack
+        logger.warning(f"No supergroups found for input file with mode {groupingg}, proceed without merging groups")
+
+    labels, colors, procs = get_labels_colors_procs_sorted([k for k in new_stack.keys()])
+    hist_stack = [new_stack[p] for p in procs]
+
+    return hist_stack, labels, colors, procs

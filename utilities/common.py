@@ -166,9 +166,9 @@ def get_gen_axes(dilepton_ptV_binning=None, inclusive=False, flow=False):
         # "absYVGen": hist.axis.Regular(10, 0, 2.5, name = "absYVGen", underflow=False, overflow=flow)
         "absYVGen": hist.axis.Variable([0, 0.35, 0.7, 1.1, 1.5, 2.5], name = "absYVGen", underflow=False, overflow=flow),
     }
-     if inclusive:
-         binning = (*gen_axes["absYVGen"].edges[:-1], 5.)
-         gen_axes["absYVGen"] = hist.axis.Variable(binning, name="absYVGen", underflow=False, overflow=flow)
+    if inclusive:
+        binning = (*gen_axes["absYVGen"].edges[:-1], 5.)
+        gen_axes["absYVGen"] = hist.axis.Variable(binning, name="absYVGen", underflow=False, overflow=flow)
 
     return gen_axes
 

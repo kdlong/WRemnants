@@ -8,7 +8,7 @@ parser = common.plot_parser()
 parser.add_argument("-r", "--reffile", required=True, type=str, help="Combine fitresult file for nominal result")
 parser.add_argument("-i", "--reffileinf", required=False, type=str, help="Combine fitresult file for inflated result")
 #parser.add_argument("--pdfs", default=["ct18z", "ct18", "herapdf20",  "msht20",  "msht20an3lo",  "nnpdf31",  "nnpdf40",  "pdf4lhc21"],
-parser.add_argument("--pdfs", default=["ct18z", "ct18", "nnpdf40",  "msht20an3lo",  "nnpdf31",  "msht20",  "pdf4lhc21"],
+parser.add_argument("--pdfs", default=["ct18z", "ct18", "nnpdf40",  "msht20an3lo",  "nnpdf31",  "pdf4lhc21"],
     type=str, help="PDF to plot")
 parser.add_argument("--colors", type=str, nargs="+", help="Colors for PDFs",
 	default=["#E42536", "#2ca02c", "#9467bd", "#7f7f7f", "#8c564b", "#e377c2", "#17becf", ] )

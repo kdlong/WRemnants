@@ -39,7 +39,7 @@ def cfgFigure(href, xlim=None, bin_density = 300,  width_scale=1, automatic_scal
 def figure(href, xlabel, ylabel, ylim=None, xlim=None,
     grid = False, plot_title = None, title_padding = 0,
     bin_density = 300, cms_label = None, logy=False, logx=False,
-    width_scale=1, height=8, automatic_scale=True, logoPos=2, fontsize=24,
+    width_scale=1, height=8, automatic_scale=True
 ):
     if isinstance(href, hist.Hist):
         fig, xlim = cfgFigure(href, xlim, bin_density, width_scale, automatic_scale)
@@ -52,7 +52,6 @@ def figure(href, xlabel, ylabel, ylim=None, xlim=None,
         fig = plt.figure(figsize=(width_scale*height*width,height))
 
     ax1 = fig.add_subplot() 
-    if cms_label: hep.cms.text(cms_label, loc=logoPos, fontsize=fontsize)
 
     ax1.set_xlabel(xlabel)
     ax1.set_ylabel(ylabel)
@@ -99,7 +98,6 @@ def figureWithRatio(href, xlabel, ylabel, ylim, rlabel, rrange, xlim=None,
         if plot_title: 
             ax1.set_title(plot_title, pad = title_padding)
 
-    if cms_label: hep.cms.text(cms_label, loc=logoPos)
     ax2 = fig.add_subplot(4, 1, 4) 
 
     ax2.set_xlabel(xlabel)
@@ -405,7 +403,6 @@ def makeStackPlotWithRatio(
     addLegend(ax1, nlegcols, extra_text=extra_text, extra_text_loc=extra_text_loc, text_size=legtext_size)
     fix_axes(ax1, ax2, fig, yscale=yscale, logy=logy, noSci=noSci)
 
-    print("cms_decor", cms_decor, "done")
     if cms_decor:
         lumi = float(f"{lumi:.3g}") if not density else None
         add_cms_decor(ax1, cms_decor, data="Data" in histInfo, lumi=lumi, loc=logoPos)
@@ -417,7 +414,7 @@ def makePlotWithRatioToRef(
     xlabel="", ylabel="Events/bin", rlabel="x/nominal",
     rrange=[0.9, 1.1], ylim=None, xlim=None, nlegcols=2, binwnorm=None, alpha=1.,
     baseline=True, dataIdx=None, autorrange=None, grid = False, extra_text=None, extra_text_loc=(0.8, 0.7),
-    yerr=False, legtext_size=20, plot_title=None, x_ticks_ndp = None, bin_density = 300, yscale=None,
+    yerr=False, legtext_size=20, plot_title=None, x_ticks_ndp = None, bin_density = 300, yscale=None, logoPos=2, scale_cms=1,
     logy=False, logx=False, fill_between=0, title_padding = 0, cms_label = None, cutoff=1e-6, only_ratio = False, width_scale = 1
 ):
     if len(hists) != len(labels) or len(hists) != len(colors):
@@ -428,13 +425,13 @@ def makePlotWithRatioToRef(
         fig, ax1, ax2 = figureWithRatio(
         hists[0], xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, 
             grid_on_ratio_plot = grid, plot_title = plot_title, title_padding=title_padding,
-            bin_density = bin_density, cms_label = cms_label, logy=logy, logx=logx, only_ratio=only_ratio, width_scale=width_scale
+            bin_density = bin_density, logy=logy, logx=logx, only_ratio=only_ratio, width_scale=width_scale
         )
     else:
         fig, ax2 = figureWithRatio(
             hists[0], xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, 
             grid_on_ratio_plot = grid, plot_title = plot_title, title_padding=title_padding,
-            bin_density = bin_density, cms_label = cms_label, logy=logy, logx=logx, only_ratio=only_ratio, width_scale=width_scale
+            bin_density = bin_density, logy=logy, logx=logx, only_ratio=only_ratio, width_scale=width_scale
         )
 
     linestyles = linestyles+['solid']*(len(hists)-len(linestyles))
@@ -507,6 +504,10 @@ def makePlotWithRatioToRef(
             xlim = [hists[0].axes[0].edges[0], hists[0].axes[0].edges[-1]]
         fix_axes(ax1, ax2, fig, yscale=yscale, logy=logy)
         if x_ticks_ndp: ax2.xaxis.set_major_formatter(StrMethodFormatter('{x:.' + str(x_ticks_ndp) + 'f}'))
+
+    if cms_label:
+        add_cms_decor(ax1, cms_label, loc=logoPos, text_size=ax1.yaxis.label.get_size()*scale_cms)
+
     return fig
 
 def makeHistPlot2D(h2d, flow=False, **kwargs):

@@ -78,6 +78,7 @@ xlabels = {
     "ptGen" : r"p$_{T}^{\mu}$ (GeV)",
     "ptW" : r"p$_{T}^{\mu+p_{\mathrm{T}}^{miss}}$ (GeV)",
     "ptVGen" : r"p$_{T}^\mathrm{V}$ (GeV)",
+    "ptVgen" : r"p$_{T}^\mathrm{V}$ (GeV)",
     "muonJetPt": r"p$_{T}^\mathrm{jet[\mu]}$ (GeV)",
     "eta" : r"$\eta^{\mu}$",
     "etaGen" : r"$\eta^{\mu}$",

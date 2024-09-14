@@ -72,12 +72,11 @@ def define_gen_level(df, gen_level, dataset_name, mode="w_mass"):
             df = df.Define("absYVGen", "postfsrabsYV")  
 
         df = df.Alias("ptVGen", "postfsrPTV")      
+        df = df.Alias("chargeVGen", "postfsrChargeV")
 
     if "wlike" in mode:
         df = df.Define("qGen", "event % 2 == 0 ? -1 : 1")
     
-    df = df.Alias("chargeVGen", "postfsrChargeV")
-
     return df
 
 def select_fiducial_space(df, select=True, accept=True, mode="w_mass", **kwargs):

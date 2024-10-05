@@ -15,7 +15,6 @@ from utilities.styles import styles
 from utilities.io_tools import input_tools, output_tools, conversion_tools
 from wremnants.datasets.datagroups import Datagroups
 from wremnants import plot_tools
-import pdb
 
 hep.style.use(hep.style.ROOT)
 
@@ -24,9 +23,7 @@ poi_type_choices = ["nois", "mu", "pmaskedexp", "pmaskedexpnorm", "sumpois", "su
 parser = common.plot_parser()
 parser.add_argument("infile", type=str, help="Combine fitresult file")
 parser.add_argument("--name",  type=str, default="Unfolded data", help="Name for main source")
-parser.add_argument("-r", "--rrange", type=float, nargs=2, default=[0.9,1.1], help="y range for ratio plot")
 parser.add_argument("--ylabel", type=str, default=None, help="Specify a y-axis label (if not it will be set automatic)")
-parser.add_argument("--ylim", type=float, nargs=2, help="Min and max values for y axis (if not specified, range set automatically)")
 parser.add_argument("--logy", action='store_true', help="Make the yscale logarithmic")
 parser.add_argument("--noData", action='store_true', help="Don't plot data")
 parser.add_argument("--pulls", action='store_true', help="Make ratio as pulls between data and reference inputs")
@@ -92,6 +89,9 @@ if args.histfile:
         groups.copyGroup("Wmunu", "Wminus", member_filter=lambda x: x.name.startswith("Wminus") and not x.name.endswith("OOA"))
         groups.copyGroup("Wmunu", "Wplus", member_filter=lambda x: x.name.startswith("Wplus") and not x.name.endswith("OOA"))
 
+    groups.set_rebin_action(["ptVGen","absYVGen"], [0,54,0,2.5], rename=False)
+
+
 proc_dict = {"W_qGen0": "W^{-}", "W_qGen1": "W^{+}"}
 def get_xlabel(names, proc=""):
     if len(names) > 1:
@@ -153,7 +153,7 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
     centers = hist_xsec.axes.centers[0]
 
     if binwnorm==1:
-        yLabel = yLabel+"/unit"
+        yLabel = yLabel#+"/unit"
     else:
         binwidths = np.ones_like(binwidths)
 
@@ -161,9 +161,10 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
         rlabel=f"Pulls"
     elif ratioToData:
         # rlabel=f"{args.refName}/{args.name}"
-        rlabel=f"1/{args.name}"
+        name = args.name.replace(' ','\ ')
+        rlabel=f"$1\,/\,{name}$"
     else:
-        rlabel=f"Data/{label_others[0]}"
+        rlabel=f"$Data\,/\,{label_others[0]}$"
 
     rrange = args.rrange
 
@@ -179,13 +180,13 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
         ylim = args.ylim
 
     # make plots
-    fig, ax1, ax2 = plot_tools.figureWithRatio(hist_xsec, xlabel, yLabel, ylim, rlabel, rrange, width_scale=2)
+    fig, ax1, ax2 = plot_tools.figureWithRatio(hist_xsec, xlabel, yLabel, ylim, rlabel, rrange, automatic_scale=False, width_scale=2 if len(axes_names) > 1 else 1)
 
     ax1.hlines(y, edges[:-1], edges[1:], colors="black", label=args.name)
-    ax1.bar(centers, height=2*unc, bottom=y-unc, width=edges[1:] - edges[:-1], color="silver", label="Total")
+    ax1.bar(centers, height=2*unc, bottom=y-unc, width=edges[1:] - edges[:-1], color="silver", label="Total unc.")
     if hist_xsec_stat is not None:
         unc_stat = np.sqrt(hist_xsec_stat.variances())/binwidths
-        ax1.bar(centers, height=2*unc_stat, bottom=y-unc_stat, width=edges[1:] - edges[:-1], color="gold", label="Stat")
+        ax1.bar(centers, height=2*unc_stat, bottom=y-unc_stat, width=edges[1:] - edges[:-1], color="gold", label="Stat unc.")
 
     if args.genFlow: #TODO TEST
         ax1.fill([0,18.5, 18.5, 0,0], [ylim[0],*ylim,ylim[1],ylim[0]], color="grey", alpha=0.3)
@@ -196,10 +197,10 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
 
     if ratioToData and not pulls:
         unc_ratio = unc / y
-        ax2.bar(centers, height=2*unc_ratio, bottom=1-unc_ratio, width=edges[1:] - edges[:-1], color="silver", label="Total")
+        ax2.bar(centers, height=2*unc_ratio, bottom=1-unc_ratio, width=edges[1:] - edges[:-1], color="silver", label="Total unc.")
         if hist_xsec_stat is not None:
             unc_ratio_stat = unc_stat / y
-            ax2.bar(centers, height=2*unc_ratio_stat, bottom=1-unc_ratio_stat, width=edges[1:] - edges[:-1], color="gold", label="Stat")
+            ax2.bar(centers, height=2*unc_ratio_stat, bottom=1-unc_ratio_stat, width=edges[1:] - edges[:-1], color="gold", label="Stat unc.")
 
     if pulls:
         ax2.plot([min(edges), max(edges)], [0, 0], color="black", linestyle="-")
@@ -226,7 +227,7 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
                     zorder=2,
                 ) 
                 continue
-        
+
             y = hh.divideHists(h, hden, cutoff=0, rel_unc=True).values()
             ax2.plot(centers, y, linewidth=0, marker=m, color=c)
 
@@ -236,7 +237,7 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
         ax1.plot(centers, y, linewidth=0, marker='o', color="blue", label=args.refName)
 
         if pulls:
-            hdiff = hh.addHists(hist_ref, hden, scale2=-1.)
+            hdiff = hh.addHists(hist_ref, hden, scale2=-1., flow=False)
             pull_values = hdiff.values() / np.sqrt(hden.variances())
             hdiff.values()[...] = pull_values
 
@@ -256,7 +257,7 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
             ax2.plot(centers, y, linewidth=0, marker='o', color="blue")
 
     plot_tools.add_cms_decor(ax1, args.cmsDecor, data=not args.noData, lumi=lumi, loc=args.logoPos)
-    plot_tools.addLegend(ax1, ncols=args.legCols, loc=args.legPos, text_size=args.legSize)
+    plot_tools.addLegend(ax1, ncols=args.legCols, loc=args.legPos, text_size=args.legSize, reverse=False)
     plot_tools.fix_axes(ax1, ax2, fig, yscale=args.yscale, noSci=args.noSciy)
 
     outfile = f"unfolded_{poi_type}"
@@ -266,8 +267,9 @@ def plot_xsec_unfolded(hist_xsec, hist_xsec_stat=None, hist_ref=None, poi_type="
     outfile += (f"_{args.postfix}" if args.postfix else "")
     if pulls:
         outfile += "_pulls"
+    if args.cmsDecor == "Preliminary":
+        outfile += "_preliminary"
     plot_tools.save_pdf_and_png(outdir, outfile)
-
     if hist_ref is not None:
         reference_yields = make_yields_df([hist_ref], ["Model"], per_bin=True)
         reference_yields["Uncertainty"] *= 0 # artificially set uncertainty on model hard coded to 0
@@ -306,7 +308,8 @@ def plot_uncertainties_unfolded(hist_xsec, hist_stat, hist_syst, poi_type, chann
 
     err = np.sqrt(hist_xsec.variances(flow=flow)) * scale
     err_stat = np.sqrt(hist_stat.variances(flow=flow)) * scale
-    err_syst = hh.addHists(hist_syst, hist_xsec, scale2=-1).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
+
+    err_syst = hh.addHists(hist_syst, hist_xsec, scale2=-1, flow=flow).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
     # err_syst = hist_syst.values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
 
     hist_err = hist.Hist(*hist_xsec.axes, storage=hist.storage.Double())
@@ -422,8 +425,10 @@ def plot_uncertainties_unfolded(hist_xsec, hist_stat, hist_syst, poi_type, chann
     plot_tools.save_pdf_and_png(outdir, outfile)
 
     outfile += (f"_{args.postfix}" if args.postfix else "")
-    plot_tools.save_pdf_and_png(outdir, outfile)
+    if args.cmsDecor == "Preliminary":
+        outfile += "_preliminary"
 
+    plot_tools.save_pdf_and_png(outdir, outfile)
     plot_tools.write_index_and_log(outdir, outfile, nround=2,
         yield_tables={f"Unfolded{' relative' if relative_uncertainty else ''} uncertainty{' [%]' if percentage else ''}": uncertainties},
         analysis_meta_info={args.infile : meta["meta_info"]},
@@ -479,11 +484,11 @@ def plot_uncertainties_with_ratio(
         hist_err_stat_ref.view(flow=flow)[...] = err_stat_ref
 
     if hist_syst is not None:
-        err_syst = hh.addHists(hist_syst, hist_xsec, scale2=-1).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
+        err_syst = hh.addHists(hist_syst, hist_xsec, scale2=-1, flow=flow).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
         hist_err_syst = hist.Hist(*hist_syst.axes, storage=hist.storage.Double())
         hist_err_syst.view(flow=flow)[...] = err_syst
 
-        err_syst_ref = hh.addHists(hist_syst_ref, hist_xsec, scale2=-1).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
+        err_syst_ref = hh.addHists(hist_syst_ref, hist_xsec, scale2=-1, flow=flow).values(flow=flow) * (scale[...,np.newaxis] if relative_uncertainty else scale)
         hist_err_syst_ref = hist.Hist(*hist_syst.axes, storage=hist.storage.Double())
         hist_err_syst_ref.view(flow=flow)[...] = err_syst_ref
 
@@ -504,7 +509,8 @@ def plot_uncertainties_with_ratio(
     else:
         ylim = args.ylim
 
-    rlabel=f"{args.refName}/{args.name}"
+    name = args.name.replace('' ,'\ ')
+    rlabel=f"{args.refName}/{name}"
     rrange = args.rrange
 
     # make plots
@@ -624,8 +630,10 @@ def plot_uncertainties_with_ratio(
     plot_tools.save_pdf_and_png(outdir, outfile)
 
     outfile += (f"_{args.postfix}" if args.postfix else "")
-    plot_tools.save_pdf_and_png(outdir, outfile)
+    if args.cmsDecor == "Preliminary":
+        outfile += "_preliminary"
 
+    plot_tools.save_pdf_and_png(outdir, outfile)
     plot_tools.write_index_and_log(outdir, outfile, nround=2,
         yield_tables={f"Unfolded{' relative' if relative_uncertainty else ''} uncertainty{' [%]' if percentage else ''}": uncertainties},
         analysis_meta_info={args.infile : meta["meta_info"]},
@@ -647,7 +655,10 @@ for poi_type, poi_result in result.items():
                 group_name = groups_dict[proc]
                 for syst in args.varNames:
                     groups.loadHistsForDatagroups(args.baseName, syst=syst, procsToRead=[group_name], nominalIfMissing=False)
-                    histo_others.append(groups.groups[group_name].hists[syst])
+                    histo_other = groups.groups[group_name].hists[syst]
+                    if "ptVGen" in histo_other.axes.name:
+                        histo_other = hh.disableFlow(histo_other, "ptVGen")
+                    histo_others.append(histo_other)
 
             for hist_name in filter(lambda x: not any([x.endswith(y) for y in ["_stat","_syst"]]), proc_result.keys()):
                 hist_nominal = result[poi_type][channel][proc][hist_name]
@@ -663,6 +674,11 @@ for poi_type, poi_result in result.items():
                     hist_ref.view()[...] = result_ref[poi_type_ref][channel][proc][hist_name].view()
                     hist_ref_stat = hist_nominal.copy()
                     hist_ref_stat.view()[...] = result_ref[poi_type_ref][channel][proc][f"{hist_name}_stat"].view()
+
+                if "ptVGen" in hist_nominal.axes.name:
+                    hist_nominal = hh.disableFlow(hist_nominal, "ptVGen")
+                if "ptVGen" in hist_stat.axes.name:
+                    hist_stat = hh.disableFlow(hist_stat, "ptVGen")
 
                 if args.selectAxis and args.selectEntries:
                     histo_others = [h[{k: v}] for h, k, v in zip(histo_others, args.selectAxis, args.selectEntries)]                

@@ -48,7 +48,6 @@ if args.addIsoMtAxes:
     parser = common.set_parser_default(parser, "muonIsolation", [0, 1])
 
 if isTheoryAgnostic:
-    parser = common.set_parser_default(parser, "excludeFlow", True)
     if args.genAbsYVbinEdges and any(x < 0.0 for x in args.genAbsYVbinEdges):
         raise ValueError("Option --genAbsYVbinEdges requires all positive values. Please check")
 
@@ -177,11 +176,11 @@ if args.validateVetoSF:
     logger.warning("Validating veto SF using Wlike workflow: it will apply single muon scale factors on the triggering muon, and veto SF on the non triggering one")
     logger.warning("Note: single muon SF uncertainties are propagated using the triggering muon, and veto SF uncertainties are propagated using the non triggering one")
     if args.useRefinedVeto:
-        from wremnants.muon_efficiencies_veto_TEST import make_muon_efficiency_helpers_veto_TEST
-        muon_efficiency_veto_helper, muon_efficiency_veto_helper_syst, muon_efficiency_veto_helper_stat = wremnants.muon_efficiencies_veto_TEST.make_muon_efficiency_helpers_veto_TEST(antiveto=False)
+        from wremnants.muon_efficiencies_veto_newVeto import make_muon_efficiency_helpers_newVeto
+        muon_efficiency_veto_helper, muon_efficiency_veto_helper_syst, muon_efficiency_veto_helper_stat = wremnants.muon_efficiencies_veto_newVeto.make_muon_efficiency_helpers_newVeto
     else:
         pass
-    # we don't store the veto SF for this version at the moment, I think
+    # we don't store the veto SF for this version at the moment, I think, so I can't run this validation yet
     #    muon_efficiency_veto_helper, muon_efficiency_veto_helper_syst, muon_efficiency_veto_helper_stat = wremnants.muon_efficiencies_veto.make_muon_efficiency_helpers_veto(useGlobalOrTrackerVeto = useGlobalOrTrackerVeto, era = era)
         
 pileup_helper = pileup.make_pileup_helper(era = era)
@@ -438,6 +437,17 @@ def build_graph(df, dataset):
         df = df.Define("deltaPhiMuonMet", "std::abs(wrem::deltaPhi(trigMuons_phi0,met_wlike_TV2.Phi()))")
         df = df.Filter(f"deltaPhiMuonMet > {args.dphiMuonMetCut*np.pi}")
 
+    if isZ:
+        # for vertex efficiency plot in MC
+        df = df.Define("absDiffGenRecoVtx_z", "std::abs(GenVtx_z - PV_z)")
+        df = df.Define("trigMuons_abseta0", "abs(trigMuons_eta0)")
+        axis_absDiffGenRecoVtx_z = hist.axis.Regular(100,0,2.0, name = "absDiffGenRecoVtx_z", underflow=False, overflow=True)
+        axis_prefsrWpt = hist.axis.Regular(50, 0., 100., name = "prefsrWpt", underflow=False, overflow=True)
+        axis_abseta = hist.axis.Regular(6, 0, 2.4, name = "abseta", overflow=False, underflow=False)
+        cols_vertexZstudy = ["trigMuons_eta0", "trigMuons_passIso0", "passWlikeMT", "absDiffGenRecoVtx_z", "ptVgen"]
+        yieldsVertexZstudy = df.HistoBoost("nominal_vertexZstudy", [axis_abseta, common.axis_passIso, common.axis_passMT, axis_absDiffGenRecoVtx_z, axis_prefsrWpt], [*cols_vertexZstudy, "nominal_weight"])
+        results.append(yieldsVertexZstudy)
+
     if not args.addIsoMtAxes:
         df = df.Filter("passWlikeMT")
 
@@ -446,15 +456,25 @@ def build_graph(df, dataset):
         # also remove vertex weights since they depend on PU
         if dataset.is_data:
             df = df.DefinePerSample("nominal_weight_noPUandVtx", "1.0")
+            df = df.DefinePerSample("nominal_weight_noVtx", "1.0")
         else:
             df = df.Define("nominal_weight_noPUandVtx", "nominal_weight/(weight_pu*weight_vtx)")
+            df = df.Define("nominal_weight_noVtx", "nominal_weight/weight_vtx")
+
         axis_nRecoVtx = hist.axis.Regular(50, 0.5, 50.5, name="PV_npvsGood")
         axis_fixedGridRhoFastjetAll = hist.axis.Regular(50, 0, 50, name="fixedGridRhoFastjetAll")
         results.append(df.HistoBoost("PV_npvsGood_uncorr", [axis_nRecoVtx], ["PV_npvsGood", "nominal_weight_noPUandVtx"]))
+        results.append(df.HistoBoost("PV_npvsGood_noVtx", [axis_nRecoVtx], ["PV_npvsGood", "nominal_weight_noVtx"]))
         results.append(df.HistoBoost("PV_npvsGood", [axis_nRecoVtx], ["PV_npvsGood", "nominal_weight"]))
         results.append(df.HistoBoost("fixedGridRhoFastjetAll_uncorr", [axis_nRecoVtx], ["fixedGridRhoFastjetAll", "nominal_weight_noPUandVtx"]))
+        results.append(df.HistoBoost("fixedGridRhoFastjetAll_noVtx", [axis_nRecoVtx], ["fixedGridRhoFastjetAll", "nominal_weight_noVtx"]))
         results.append(df.HistoBoost("fixedGridRhoFastjetAll", [axis_nRecoVtx], ["fixedGridRhoFastjetAll", "nominal_weight"]))
-
+        df = df.Define("trigMuons_vertexZ0", "PV_z + Muon_dz[trigMuons][0]") # define at reco level as PV_z + Muon_dz
+        axis_vertexZ0 = hist.axis.Regular(200, -20, 20, name="muonVertexZ0")
+        results.append(df.HistoBoost("trigMuons_vertexZ0_uncorr", [axis_vertexZ0, common.axis_charge], ["trigMuons_vertexZ0", "trigMuons_charge0", "nominal_weight_noPUandVtx"]))
+        results.append(df.HistoBoost("trigMuons_vertexZ0_noVtx", [axis_vertexZ0, common.axis_charge], ["trigMuons_vertexZ0", "trigMuons_charge0", "nominal_weight_noVtx"]))
+        results.append(df.HistoBoost("trigMuons_vertexZ0", [axis_vertexZ0, common.axis_charge], ["trigMuons_vertexZ0", "trigMuons_charge0", "nominal_weight"]))
+        
     nominal = df.HistoBoost("nominal", axes, [*cols, "nominal_weight"])
     results.append(nominal)
 

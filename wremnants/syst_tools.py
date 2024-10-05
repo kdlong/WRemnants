@@ -70,6 +70,8 @@ def syst_transform_map(base_hist, hist_name):
     resum_tnpsXp1_down = ['pdf0', 'gamma_cusp-1.', 'gamma_mu_q-1.', 'gamma_nu-1.', 's-1.', 'b_qqV-2.5', 'b_qqV-2.5', 'b_qqbarV-2.5', 'b_qqS-2.5', 'b_qqDS-2.5', 'b_qg-2.5']
     resum_tnpsXp0_up = ['pdf0', 'gamma_cusp1.', 'gamma_mu_q1.', 'gamma_nu1.', 's1.', 'b_qqV0.5', 'b_qqV0.5', 'b_qqbarV0.5', 'b_qqS0.5', 'b_qqDS0.5', 'b_qg0.5']
     resum_tnpsXp0_down = ['pdf0', 'gamma_cusp-1.', 'gamma_mu_q-1.', 'gamma_nu-1.', 's-1.', 'b_qqV-0.5', 'b_qqV-0.5', 'b_qqbarV-0.5', 'b_qqS-0.5', 'b_qqDS-0.5', 'b_qg-0.5']
+    resum_tnpbeam_up = ['pdf0', 'b_qqV0.5', 'b_qqbarV0.5', 'b_qqS0.5', 'b_qqDS0.5', 'b_qg0.5']
+    resum_tnpbeam_down = ['pdf0', 'b_qqV-0.5', 'b_qqV-0.5', 'b_qqbarV-0.5', 'b_qqS-0.5', 'b_qqDS-0.5', 'b_qg-0.5']
 
     transforms.update({
         "resumFOScaleUp" : {
@@ -90,6 +92,12 @@ def syst_transform_map(base_hist, hist_name):
                 ["transition_points0.2_0.65_1.1", "transition_points0.4_0.55_0.7", 
                 "transition_points0.2_0.45_0.7", "transition_points0.4_0.75_1.1", ],
                  no_flow=["ptVgen"], do_min=True)},
+       "resumTNPBeamUp" : {
+           "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" : resum_tnpbeam_up}], "vars")[0]
+        },
+       "resumTNPBeamDown" : {
+           "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" : resum_tnpbeam_down}], "vars")[1]
+        },
        "resumTNPXp1Up" : {
            "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" : resum_tnpsXp0_up}], "vars")[0]
         },
@@ -131,40 +139,62 @@ def syst_transform_map(base_hist, hist_name):
                  [x for x in h.axes["vars"] if any(re.match(y, x) for y in ["pdf0", "^nuB.*", "nuS.*", "^muB.*", "^muS.*"])],
                     do_min=True)},
        "resumNPUp" : {
-            "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                 #["c_nu-0.1-omega_nu0.5", "omega_nu0.5", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
-                 ["Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
-                     "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",],
-                 no_flow=["ptVgen"], do_min=False) if "vars" in h.axes.name else h},
-        "resumNPDown" : {
-            "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                 #["c_nu-0.1-omega_nu0.5", "omega_nu0.5", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
-                 ["Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
-                     "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",],
-                 no_flow=["ptVgen"], do_min=True) if "vars" in h.axes.name else h},
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
+                     "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",]}], syst_axis="vars", scale=0.5)[0]
+        },
+       "resumNPDown" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "Lambda2-0.25", "Lambda20.25", "Lambda4.01", 
+                     "Lambda4.16","Delta_Lambda2-0.02", "Delta_Lambda20.02",]}], syst_axis="vars", scale=0.5)[1]
+        },
+       "scaleTransUp" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "renorm_scale_pt20_envelope_Up", 'transition_points0.2_0.35_1.0', 'transition_points0.2_0.75_1.0']}], syst_axis="vars", scale=0.5)[0]
+        },
+       "scaleTransDown" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "renorm_scale_pt20_envelope_Down", 'transition_points0.2_0.75_1.0', 'transition_points0.2_0.75_1.0']}], syst_axis="vars", scale=0.5)[1]
+        },
+       "resumCSNPUp" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "c_nu-0.1-omega_nu0.5", "omega_nu0.5"]}], syst_axis="vars", scale=0.5)[0]
+        },
+       "resumCSNPDown" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "c_nu-0.1-omega_nu0.5", "omega_nu0.5"]}], syst_axis="vars", scale=0.5)[1]
+        },
+       "resumCSNPhalfUp" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "c_nu-0.1-omega_nu0.5", "omega_nu0.5"]}], syst_axis="vars", scale=0.25)[0]
+        },
+       "resumCSNPhalfDown" : {
+               "action" : lambda h: h if "vars" not in h.axes.name else hh.rssHists(h[{"vars" :
+                 ["pdf0", "c_nu-0.1-omega_nu0.5", "omega_nu0.5"]}], syst_axis="vars", scale=0.25)[1]
+        },
        "resumNPOmegaUp" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^Omega-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^Omega-*\d+", x)],
                  do_min=False) if "vars" in h.axes.name else h},
         "resumNPOmegaDown" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^Omega-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^Omega-*\d+", x)],
                  do_min=True) if "vars" in h.axes.name else h},
        "resumNPomega_nuUp" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^omega_nu-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^omega_nu-*\d+", x)],
                  do_min=False) if "vars" in h.axes.name else h},
         "resumNPomega_nuDown" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^omega_nu-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^omega_nu-*\d+", x)],
                  do_min=True) if "vars" in h.axes.name else h},
        "resumNPc_nuUp" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^c_nu-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^c_nu-*\d+", x)],
                  do_min=False) if "vars" in h.axes.name else h},
         "resumNPc_nuDown" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", 
-                [x for x in h.axes["vars"] if re.match("^c_nu-*\d+", x)],
+                [x for x in h.axes["vars"] if re.match(r"^c_nu-*\d+", x)],
                  do_min=True) if "vars" in h.axes.name else h},
         "resumScaleMax" : {
             "action" : lambda h: hh.syst_min_or_max_env_hist(h, projAx(hist_name), "vars", range(9,44), no_flow=["ptVgen"], do_min=False)},
@@ -762,7 +792,8 @@ def add_theory_corr_hists(results, df, axes, cols, helpers, generators, modify_c
 
 
 def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, cols, base_name="nominal", 
-                                  what_analysis=ROOT.wrem.AnalysisType.Wmass, singleMuonCollection="goodMuons", customHistNameTag="", smooth3D=False, **kwargs
+                                  what_analysis=ROOT.wrem.AnalysisType.Wmass, smooth3D=False,
+                                  singleMuonCollection="goodMuons", customHistNameTag="", **kwargs
     ):
 
     if what_analysis == ROOT.wrem.AnalysisType.Wmass:
@@ -829,7 +860,8 @@ def add_muon_efficiency_unc_hists(results, df, helper_stat, helper_syst, axes, c
 
 
 def add_muon_efficiency_unc_hists_altBkg(results, df, helper_syst, axes, cols, base_name="nominal", 
-                                         what_analysis=ROOT.wrem.AnalysisType.Wmass, singleMuonCollection="goodMuons", step="tracking", customHistNameTag="", **kwargs
+                                         what_analysis=ROOT.wrem.AnalysisType.Wmass,
+                                         singleMuonCollection="goodMuons", step="tracking", customHistNameTag="", **kwargs
     ):
 
     SAvarTag = "SA" if step == "tracking" else "" 

@@ -164,7 +164,7 @@ def get_gen_axes(dilepton_ptV_binning=None, inclusive=False, flow=False):
     gen_axes = {
         "ptVGen": hist.axis.Variable(dilepton_ptV_binning[:-1], name = "ptVGen", underflow=False, overflow=flow),
         # "absYVGen": hist.axis.Regular(10, 0, 2.5, name = "absYVGen", underflow=False, overflow=flow)
-        "absYVGen": hist.axis.Variable([0, 0.35, 0.7, 1.1, 1.5, 2.5], name = "absYVGen", underflow=False, overflow=flow),
+        "absYVGen": hist.axis.Variable([0, 0.35, 0.7, 1.1, 1.5, 2.5], name = "absYVGen", underflow=False, overflow=False),
     }
     # if inclusive:
     #     binning = (*gen_axes["absYVGen"].edges[:-1], 5.)
@@ -266,7 +266,7 @@ def set_subparsers(subparser, name, analysis_label):
         if name == "theoryAgnosticPolVar":
             subparser.add_argument("--theoryAgnosticFilePath", type=str, default=".",
                                    help="Path where input files are stored")
-            subparser.add_argument("--theoryAgnosticFileTag", type=str, default="x0p30_y3p00_V9", choices=["x0p30_y3p00_V4", "x0p30_y3p00_V5", "x0p40_y3p50_V6", "x0p30_y3p00_V7", "x0p30_y3p00_V8", "x0p30_y3p00_V9"],
+            subparser.add_argument("--theoryAgnosticFileTag", type=str, default="x0p30_y3p00_V10", choices=["x0p30_y3p00_V4", "x0p30_y3p00_V5", "x0p40_y3p50_V6", "x0p30_y3p00_V7", "x0p30_y3p00_V8", "x0p30_y3p00_V9", "x0p30_y3p00_V10"],
                                    help="Tag for input files")
             subparser.add_argument("--theoryAgnosticSplitOOA", action='store_true',
                                    help="Define out-of-acceptance signal template as an independent process")
@@ -390,7 +390,6 @@ def common_parser(analysis_label=""):
         parser.add_argument("--dummyMuScaleVar", action='store_true', help='Use a dummy 1e-4 variation on the muon scale instead of reading from the calibration file')
         parser.add_argument("--muonCorrMag", default=1.e-4, type=float, help="Magnitude of dummy muon momentum calibration uncertainty")
         parser.add_argument("--muonCorrEtaBins", default=1, type=int, help="Number of eta bins for dummy muon momentum calibration uncertainty")
-        parser.add_argument("--excludeFlow", action='store_true', help="Excludes underflow and overflow bins in main axes")
         parser.add_argument("--biasCalibration", type=str, default=None, choices=["binned","parameterized", "A", "M"], help="Adjust central value by calibration bias hist for simulation")
         parser.add_argument("--noSmearing", action='store_true', help="Disable resolution corrections")
         # options for efficiencies
@@ -465,15 +464,20 @@ def plot_parser():
     parser.add_argument("-o", "--outpath", type=str, default=os.path.expanduser("~/www/WMassAnalysis"), help="Base path for output")
     parser.add_argument("-f", "--outfolder", type=str, default="./test", help="Subfolder for output")
     parser.add_argument("-p", "--postfix", type=str, help="Postfix for output file name")
-    parser.add_argument("--cmsDecor", default="Preliminary", type=str, choices=[None,"Preliminary", "Work in progress", "Internal"], help="CMS label")
-    parser.add_argument("--lumi", type=float, default=16.8, help="Luminosity used in the fit, needed to get the absolute cross section")
-    parser.add_argument("--logoPos", type=int, default=2, help="CMS logo position")
     parser.add_argument("--eoscp", action='store_true', help="Override use of xrdcp and use the mount instead")
-    parser.add_argument("--noSciy", action='store_true', help="Don't allow scientific notation for y axis")
+    parser.add_argument("--lumi", type=float, default=16.8, help="Luminosity used in the fit, needed to get the absolute cross section")
+    parser.add_argument("--cmsDecor", default="Preliminary", nargs="?", type=str, choices=[None, " ", "Preliminary", "Work in progress", "Internal"], help="CMS label")
+    parser.add_argument("--logoPos", type=int, default=2, help="CMS logo position")
     parser.add_argument("--legPos", type=str, default="upper right", help="Set legend position")
     parser.add_argument("--legSize", type=str, default="small", help="Legend text size (small: axis ticks size, large: axis label size, number)")
     parser.add_argument("--legCols", type=int, default=2, help="Number of columns in legend")
+    parser.add_argument("--lowerLegPos", type=str, default="upper left", help="Set legend position")
+    parser.add_argument("--lowerLegCols", type=int, default=2, help="Number of columns in legend")
+    parser.add_argument("--noSciy", action='store_true', help="Don't allow scientific notation for y axis")
     parser.add_argument("--yscale", type=float, help="Scale the upper y axis by this factor (useful when auto scaling cuts off legend)")
+    parser.add_argument("--ylim", type=float, nargs=2, help="Min and max values for y axis (if not specified, range set automatically)")
+    parser.add_argument("--xlim", type=float, nargs=2, help="min and max for x axis")
+    parser.add_argument("--rrange", type=float, nargs=2, default=[0.9,1.1], help="y range for ratio plot")
 
     return parser
 

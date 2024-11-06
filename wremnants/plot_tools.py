@@ -120,6 +120,10 @@ def figureWithRatio(
 
     ratio_axes = []
 
+    if subplotsizes == 2 and len(rrange) == 2 and len(rlabel) == 2:
+        rrange = [rrange]
+        rlabel = [rlabel]
+
     if not only_ratio:
         ax1 = fig.add_subplot(sum(subplotsizes), 1, (1, subplotsizes[0]))
         ax1.set_xlabel(" ")
@@ -138,31 +142,35 @@ def figureWithRatio(
         if plot_title:
             ax1.set_title(plot_title, pad=title_padding)
 
-    for i, ax in enumerate(subplotsizes[1:]):
+    for i, (ax, rr, rl) in enumerate(zip(subplotsizes[1:], rrange, rlabel)):
         xax = fig.add_subplot(
-            sum(subplotsizes), 1, (sum(subplotsizes[:i+1])+1, sum(subplotsizes[:i+2]))
+            sum(subplotsizes),
+            1,
+            (sum(subplotsizes[: i + 1]) + 1, sum(subplotsizes[: i + 2])),
         )
         xax.set_xlabel(" ")
-        xax.set_ylabel(rlabel)
-        xax.set_ylim(rrange)
-        ratio_axes.append(xax) 
+        xax.set_ylabel(rl)
+        xax.set_ylim(rr)
+        ratio_axes.append(xax)
 
-    xax = ratio_axes[-1]
-    xax.set_xlabel(xlabel)
+    for ax in ratio_axes:
+        ax.set_xlim(xlim)
 
-    xax.set_xlim(xlim)
-    if x_ticks_ndp:
-        xax.xaxis.set_major_formatter(
-            StrMethodFormatter("{x:." + str(x_ticks_ndp) + "f}")
-        )
+        if x_ticks_ndp:
+            ax.xaxis.set_major_formatter(
+                StrMethodFormatter("{x:." + str(x_ticks_ndp) + "f}")
+            )
+        if logx:
+            ax.set_xscale("log")
 
-    if logx:
-        if not only_ratio:
-            ax1.set_xscale("log")
-        xax.set_xscale("log")
+        if grid_on_ratio_plot:
+            ax.grid(which="both")
 
-    if grid_on_ratio_plot:
-        xax.grid(which="both")
+    ratio_axes[-1].set_xlabel(xlabel)
+
+    if logx and not only_ratio:
+        ax1.set_xscale("log")
+
     if not only_ratio:
         return fig, ax1, ratio_axes
     else:
@@ -890,8 +898,8 @@ def makePlotWithRatioToRef(
     linestyles=[],
     xlabel="",
     ylabel="Events/bin",
-    rlabel="x/nominal",
-    rrange=[0.9, 1.1],
+    rlabel=["x/nominal"],
+    rrange=[[0.9, 1.1]],
     ylim=None,
     xlim=None,
     nlegcols=2,
@@ -944,7 +952,12 @@ def makePlotWithRatioToRef(
 
         midratio_hists = [
             hh.divideHists(
-                hists[midratio_idxs[i]], hists[midratio_idxs[0]], cutoff=cutoff, flow=False, rel_unc=True, by_ax_name=False
+                hists_ratio[midratio_idxs[0]],
+                hists_ratio[i],
+                cutoff=cutoff,
+                flow=False,
+                rel_unc=True,
+                by_ax_name=False,
             )
             for i in midratio_idxs
         ]
@@ -1005,24 +1018,6 @@ def makePlotWithRatioToRef(
             flow="none",
             zorder=4,
         )
-        hep.histplot(
-            hh.divideHists(
-                hists[dataIdx],
-                hists[0],
-                cutoff=cutoff,
-                flow=False,
-                by_ax_name=False,
-                rel_unc=True,
-            ),
-            histtype="errorbar",
-            color=colors[dataIdx],
-            xerr=False,
-            yerr=True,
-            stack=False,
-            ax=ax2,
-            alpha=alpha,
-            flow="none",
-        )
 
     hists_noData = exclude_data(hists)
     if not only_ratio:
@@ -1042,9 +1037,9 @@ def makePlotWithRatioToRef(
             zorder=3,
         )
 
-
     if len(ratio_hists) > 1:
-        plotRatio(ax2,
+        plotRatio(
+            ax2,
             ratio_hists=ratio_hists,
             labels=labels,
             colors=colors,
@@ -1061,7 +1056,8 @@ def makePlotWithRatioToRef(
             add_legend=not only_ratio,
         )
         if midratio_hists:
-            plotRatio(ratio_axes[0],
+            plotRatio(
+                ratio_axes[0],
                 ratio_hists=midratio_hists,
                 labels=[labels[i] for i in midratio_idxs],
                 colors=[colors[i] for i in midratio_idxs],
@@ -1073,7 +1069,9 @@ def makePlotWithRatioToRef(
                 alpha=alpha,
                 yerr=False,
                 fill_between=fill_between,
-                dataIdx=dataIdx,
+                dataIdx=(
+                    midratio_idxs.index(dataIdx) if dataIdx in midratio_idxs else None
+                ),
                 baseline=baseline,
                 add_legend=not only_ratio,
             )
@@ -1087,19 +1085,15 @@ def makePlotWithRatioToRef(
             text_size=legtext_size,
         )
 
-        # This seems like a bug, but it's needed
-        if not xlim:
-            xlim = [hists[0].axes[0].edges[0], hists[0].axes[0].edges[-1]]
-        fix_axes(ax1, ratio_axes, fig, yscale=yscale, logy=logy)
-        if x_ticks_ndp:
-            ax2.xaxis.set_major_formatter(
-                StrMethodFormatter("{x:." + str(x_ticks_ndp) + "f}")
-            )
+        fix_axes(
+            ax1, ratio_axes, fig, x_ticks_ndp=x_ticks_ndp, yscale=yscale, logy=logy
+        )
 
     if cms_label:
         add_cms_decor(ax1, cms_label, loc=logoPos)
 
     return fig
+
 
 def plotRatio(
     ax,
@@ -1147,6 +1141,18 @@ def plotRatio(
         alpha=alpha,
         flow="none",
     )
+    if dataIdx is not None:
+        hep.histplot(
+            ratio_hists[dataIdx],
+            histtype="errorbar",
+            color=colors[dataIdx],
+            xerr=False,
+            yerr=True,
+            stack=False,
+            ax=ax,
+            alpha=alpha,
+            flow="none",
+        )
 
     extra_handles = [
         Polygon(
@@ -1172,6 +1178,7 @@ def plotRatio(
             extra_labels=extra_labels,
             custom_handlers=["stackfilled"],
         )
+
 
 def makeHistPlot2D(h2d, flow=False, **kwargs):
     if flow:
@@ -1298,7 +1305,15 @@ def extendEdgesByFlow(href, bin_flow_width=0.02):
         return all_edges
 
 
-def fix_axes(ax1, ratio_axes=None, fig=None, yscale=None, logy=False, noSci=False):
+def fix_axes(
+    ax1,
+    ratio_axes=None,
+    fig=None,
+    x_ticks_ndp=None,
+    yscale=None,
+    logy=False,
+    noSci=False,
+):
     if yscale:
         ymin, ymax = ax1.get_ylim()
         ax1.set_ylim(ymin, ymax * yscale)
@@ -1312,6 +1327,8 @@ def fix_axes(ax1, ratio_axes=None, fig=None, yscale=None, logy=False, noSci=Fals
         ax1.ticklabel_format(style="sci", useMathText=True, axis="y", scilimits=(0, 0))
 
     if ratio_axes is not None:
+        ax1.set_xticklabels([])
+
         # Function to get the position of the ylabel in axes coordinates
         def get_ylabel_position(ax):
             label = ax.get_yaxis().get_label()
@@ -1326,10 +1343,20 @@ def fix_axes(ax1, ratio_axes=None, fig=None, yscale=None, logy=False, noSci=Fals
         # Set all labels to the leftmost position
         ax1.yaxis.set_label_coords(y_label_pos * 0.7, 1.0)
 
-        for ax in ratio_axes:
+        for i, ax in enumerate(ratio_axes):
             ax.tick_params(axis="y", pad=5)  # Set distance to axis for y-axis numbers
             ax.yaxis.set_label_coords(y_label_pos * 0.7, 1.0)
-            redo_axis_ticks(ax, "x")
+
+            if i == len(ratio_axes) - 1:
+                redo_axis_ticks(ax, "x")
+            else:
+                ax.set_xticklabels([])
+
+        if x_ticks_ndp:
+            ax.xaxis.set_major_formatter(
+                StrMethodFormatter("{x:." + str(x_ticks_ndp) + "f}")
+            )
+
 
 def redo_axis_ticks(ax, axlabel, no_labels=False):
     autoloc = ticker.AutoLocator()
@@ -1371,11 +1398,13 @@ def write_index_and_log(
     args={},
     nround=2,
 ):
-    indexnamesave = "index.php"
-    if "mit.edu" in socket.gethostname() and not (hasattr(args, "eoscp") and args.eoscp):
+    indexname = "index.php"
+    if "mit.edu" in socket.gethostname() and not (
+        hasattr(args, "eoscp") and args.eoscp
+    ):
         indexname = "index_mit.php"
 
-    shutil.copyfile(f"{template_dir}/{indexname}", f"{outpath}/{indexnamesave}")
+    shutil.copyfile(f"{template_dir}/{indexname}", f"{outpath}/index.php")
     logname = f"{outpath}/{logname}.log"
 
     with open(logname, "w") as logf:
@@ -1548,7 +1577,6 @@ def make_summary_plot(
         if bbox_to_anchor is not None and any(abs(x) > 1 for x in bbox_to_anchor):
             data_to_figure = ax1.transData + ax1.transAxes.inverted()
             bbox_to_anchor = data_to_figure.transform(bbox_to_anchor)
-            print(bbox_to_anchor)
 
         addLegend(
             ax1,

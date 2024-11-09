@@ -212,9 +212,9 @@ fig = plot_tools.makePlotWithRatioToRef(
     hists=hists_nom,
     hists_ratio=hists,
     midratio_idxs=[
-        2,
-        1,
         3,
+        1,
+        2,
         6,
         7,
         8,

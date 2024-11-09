@@ -211,7 +211,15 @@ else:
 fig = plot_tools.makePlotWithRatioToRef(
     hists=hists_nom,
     hists_ratio=hists,
-    midratio_idxs=[3,1,2,6,7,8,9,],
+    midratio_idxs=[
+        2,
+        1,
+        3,
+        6,
+        7,
+        8,
+        9,
+    ],
     labels=labels,
     colors=colors,
     linestyles=linestyles,
@@ -233,7 +241,7 @@ fig = plot_tools.makePlotWithRatioToRef(
     legtext_size=args.legSize,
     dataIdx=idx_unfolded,
     width_scale=1.25,
-    subplotsizes=[2,1,1],
+    subplotsizes=[2, 1, 1],
 )
 eoscp = output_tools.is_eosuser_path(args.outpath)
 

@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import ticker
 
 from utilities import parsing
-from utilities.io_tools import combinetf_input
+from utilities.io_tools import combinetf_input, output_tools
 from wremnants import plot_tools, theory_tools
 
 parser = parsing.plot_parser()
@@ -19,7 +21,6 @@ parser.add_argument(
     type=str,
     help="Combine fitresult file for inflated result",
 )
-# parser.add_argument("--pdfs", default=["ct18z", "ct18", "herapdf20",  "msht20",  "msht20an3lo",  "nnpdf31",  "nnpdf40",  "pdf4lhc21"],
 parser.add_argument(
     "--pdfs",
     default=["ct18z", "ct18", "nnpdf40", "msht20an3lo", "nnpdf31", "pdf4lhc21"],
@@ -38,7 +39,6 @@ parser.add_argument(
         "#7f7f7f",
         "#8c564b",
         "#e377c2",
-        "#17becf",
     ],
 )
 parser.add_argument("--print", action="store_true", help="Print results")
@@ -75,16 +75,31 @@ if args.print:
 
 central = pdf_dfs.iloc[0, :]
 
-plot_tools.make_summary_plot(
+eoscp = output_tools.is_eosuser_path(args.outpath)
+outdir = output_tools.make_plot_dir(args.outpath, args.outfolder, eoscp=eoscp)
+
+fig = plot_tools.make_summary_plot(
     central["value"],
     central["err_pdf"],
     central["Name"],
     pdf_dfs.iloc[1:, :],
     colors=args.colors[1:] if args.colors[0] != "auto" else args.colors[0],
-    center_color="black" if args.colors[0] == "auto" else args.colors[0],
-    xlim=[91160, 91220] if not isW else [80300, 80440],
-    xlabel="$m_{Z}$ (MeV)" if not isW else "$m_{W}$ (MeV)",
-    out=args.outpath,
-    outfolder=args.outfolder,
-    name=outname,
+    center_color="black",
+    xlim=[91160, 91220] if not isW else [80290, 80390],
+    xlabel="$\\mathit{m_{Z}}$ (MeV)" if not isW else "$\\mathit{m_{W}}$ (MeV)",
+    legend_loc="upper left",
+    legtext_size=20,
+    capsize=8,
+    cms_label=args.cmsDecor,
+    lumi=16.8,
 )
+
+ax = plt.gca()
+ax.xaxis.set_major_locator(ticker.MultipleLocator(30))
+ax.xaxis.set_minor_locator(ticker.MultipleLocator(15))
+ax.xaxis.grid(False, which="both")
+ax.yaxis.grid(False, which="both")
+plot_tools.save_pdf_and_png(outdir, outname, fig)
+plot_tools.write_index_and_log(outdir, outname)
+if eoscp:
+    output_tools.copy_to_eos(outdir, args.outpath, args.outfolder)

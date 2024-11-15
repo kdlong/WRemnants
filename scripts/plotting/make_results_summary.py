@@ -2,11 +2,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib import ticker
 
-from utilities import common
+from utilities import parsing
 from utilities.io_tools import combinetf_input, output_tools
 from wremnants import plot_tools
 
-parser = common.plot_parser()
+parser = parsing.plot_parser()
 parser.add_argument(
     "-i", "--fitresult", type=str, required=True, help="fitresults file from combinetf"
 )
@@ -28,7 +28,8 @@ dfw = pd.DataFrame.from_dict(
         "err_total": [6, 33, 23, 9.4, 32, 15.9, 13.3],
         "err_stat": [6, 25, 11, 6.4, 23, 9.8, 13.3],
         "Reference": [
-            "Phys. Rev. D 110, 030001",
+            # "Phys. Rev. D 110, 030001",
+            "PRD 110 (2024) 030001",
             "Phys. Rep. 532 (2013) 119",
             # "Phys. Rev. Lett. 108 (2012) 151804",
             "PRL 108 (2012) 151804",
@@ -72,8 +73,8 @@ text_size = 15  #
 fig = plot_tools.make_summary_plot(
     80353,
     6,
+    None,  # Don't plot stat error separately
     r"80353 $\pm$ 6",
-    # Don't plot stat error separately
     dfw_cms[["Name", "value", "err_total"]].iloc[1:, :],
     center_color="#666666",
     colors=list(dfw_cms["color"][1:]),

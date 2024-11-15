@@ -5,7 +5,7 @@ from scipy import stats
 from scipy.optimize import nnls
 
 from utilities import boostHistHelpers as hh
-from utilities import common, logging
+from utilities import logging, parsing
 from utilities.io_tools import output_tools
 from utilities.styles import styles
 from wremnants import histselections as sel
@@ -40,7 +40,7 @@ def plot_chi2(chi2, ndf, suffix=""):
 
     colors = mpl.colormaps["tab10"]
 
-    fig, ax1, ax2 = plot_tools.figureWithRatio(
+    fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         h,
         ylabel="Entries",
         xlabel=r"$\chi^2$",
@@ -52,6 +52,7 @@ def plot_chi2(chi2, ndf, suffix=""):
         automatic_scale=False,
         rlabel="1/chi2",
     )
+    ax2 = ratio_axes[-1]
 
     fontsize = ax1.xaxis.label.get_size()
 
@@ -238,7 +239,7 @@ def plot_params(params, suffix=""):
 
     colors = mpl.colormaps["tab10"]
 
-    fig, ax1, ax2 = plot_tools.figureWithRatio(
+    fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         h,
         ylabel="Entries",
         xlabel="Parameter value",
@@ -250,6 +251,7 @@ def plot_params(params, suffix=""):
         automatic_scale=False,
         rlabel="1",
     )
+    ax2 = ratio_axes[-1]
 
     fontsize = ax1.xaxis.label.get_size()
 
@@ -637,7 +639,7 @@ def plot_diagnostics_extendedABCD(
 
                 yy_err[yy_err == np.inf] = yrange * 2
 
-                fig, ax1, ax2 = plot_tools.figureWithRatio(
+                fig, ax1, ratio_axes = plot_tools.figureWithRatio(
                     h,
                     ylabel="log(Events)" if region != "FR" else "Events",
                     xlabel=styles.xlabels.get(smoothing_axis_name, smoothing_axis_name),
@@ -653,6 +655,7 @@ def plot_diagnostics_extendedABCD(
                     ),
                     # rlabel="1/nominal",
                 )
+                ax2 = ratio_axes[-1]
 
                 fontsize = ax1.xaxis.label.get_size()
 
@@ -848,7 +851,7 @@ def plot_diagnostics_extendedABCD(
 
 
 if __name__ == "__main__":
-    parser = common.plot_parser()
+    parser = parsing.plot_parser()
     parser.add_argument(
         "infile",
         help="Output file of the analysis stage, containing ND boost histograms",

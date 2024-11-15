@@ -6,12 +6,12 @@ import numpy as np
 
 from narf import combineutils
 from utilities import boostHistHelpers as hh
-from utilities import common, logging
+from utilities import logging, parsing
 from utilities.io_tools import output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
 
-parser = common.plot_parser()
+parser = parsing.plot_parser()
 parser.add_argument("infile", help="Output h5py file of the setupCombine.py")
 parser.add_argument("--logx", action="store_true", help="Enable log scale for x axis")
 parser.add_argument("--logy", action="store_true", help="Enable log scale for y axis")
@@ -199,9 +199,10 @@ def make_plot(
             ylim=args.ylim,
         )
         if add_ratio:
-            fig, ax1, ax2 = plot_tools.figureWithRatio(
+            fig, ax1, ratio_axes = plot_tools.figureWithRatio(
                 h_pred, rlabel=rlabel, rrange=args.rrange, **infos_figure
             )
+            ax2 = ratio_axes[-1]
         else:
             fig, ax1 = plot_tools.figure(h_pred, **infos_figure)
 

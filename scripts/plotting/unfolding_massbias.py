@@ -3,7 +3,7 @@ import mplhep as hep
 import numpy as np
 import pandas as pd
 
-from utilities import common, logging
+from utilities import logging, parsing
 from utilities.io_tools import output_tools
 from utilities.io_tools.combinetf_input import get_fitresult
 from wremnants import plot_tools
@@ -20,7 +20,7 @@ def get_mass_obs(filename):
 
 hep.style.use(hep.style.ROOT)
 
-parser = common.plot_parser()
+parser = parsing.plot_parser()
 parser.add_argument("inputs", nargs="+", type=str, help="Paths to fitresult files")
 args = parser.parse_args()
 
@@ -116,9 +116,10 @@ for analysis, df_ana in df.groupby("analysis"):
                 xlabel = "True Z mass"
                 ylabel = "Measured Z mass"
 
-            fig, ax1, ax2 = plot_tools.figureWithRatio(
+            fig, ax1, ratio_axes = plot_tools.figureWithRatio(
                 xarr, xlabel, ylabel, ylim, rlabel, rrange, xlim=xlim, width_scale=1
             )
+            ax2 = ratio_axes[-1]
 
             ax1.plot(
                 [xlim[0], xlim[-1]],
@@ -158,7 +159,7 @@ for analysis, df_ana in df.groupby("analysis"):
         elif diffs:
             ax2.errorbar(xarr, rarr, yerr=rerr, linestyle="", marker=".", color=color)
 
-    plot_tools.add_cms_decor(ax1, args.cmsDecor, data=True, lumi=lumi, loc=args.logoPos)
+    plot_tools.add_cms_decor(ax1, args.cmsDecor, data=True, lumi=None, loc=args.logoPos)
     plot_tools.addLegend(
         ax1, ncols=args.legCols, loc=args.legPos, text_size=args.legSize
     )

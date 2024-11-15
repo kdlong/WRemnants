@@ -2,7 +2,7 @@ import hist
 from matplotlib import colormaps
 
 from utilities import boostHistHelpers as hh
-from utilities import common, logging
+from utilities import logging, parsing
 from utilities.io_tools import output_tools
 from utilities.styles import styles
 from wremnants import plot_tools, syst_tools
@@ -10,7 +10,7 @@ from wremnants.datasets.datagroups import Datagroups
 from wremnants.histselections import FakeSelectorSimpleABCD
 from wremnants.regression import Regressor
 
-parser = common.plot_parser()
+parser = parsing.plot_parser()
 parser.add_argument(
     "infile", help="Output file of the analysis stage, containing ND boost histograms"
 )
@@ -468,6 +468,17 @@ prednames = list(
 )
 logger.info(f"Stacked processes are {prednames}")
 
+text_pieces = []
+if args.normToData:
+    text_pieces.append("Prefit" + " (normalized)")
+else:
+    text_pieces.append("Prefit")
+
+if args.channel != "all":
+    text_pieces.append(
+        r"$\mathit{q}^\mu$ = " + ("+1" if args.channel == "plus" else "-1")
+    )
+
 
 def collapseSyst(h):
     if type(h.axes[-1]) == hist.axis.StrCategory:
@@ -495,7 +506,7 @@ overflow_ax = [
 for h in args.hists:
     if any(
         x in h.split("-")
-        for x in ["pt", "ptll", "mll", "ptVgen", "ptVGen", "ptWgen", "ptZgen"]
+        for x in ["pt", "ptll", "mll", "ptW", "ptVgen", "ptVGen", "ptWgen", "ptZgen"]
     ):
         # in case of variable bin width normalize to unit (which is GeV for all of these...)
         binwnorm = 1.0
@@ -516,15 +527,19 @@ for h in args.hists:
 
     if len(h.split("-")) > 1:
         sp = h.split("-")
-        action = lambda x: hh.unrolledHist(
-            collapseSyst(x[select]), binwnorm=binwnorm, obs=sp
-        )
+        base_action = lambda x: collapseSyst(x[select])
+        action = lambda x: hh.unrolledHist(base_action(x), binwnorm=binwnorm, obs=sp)
         xlabel = f"({', '.join([styles.xlabels.get(s,s).replace('(GeV)','') for s in sp])}) bin"
     else:
-        action = lambda x: hh.projectNoFlow(collapseSyst(x[select]), h, overflow_ax)
-        print(prednames)
+        base_action = lambda x: hh.projectNoFlow(
+            collapseSyst(x[select]), h, overflow_ax
+        )
+        action = base_action
         href = h if h != "ptVgen" else ("ptWgen" if "Wmunu" in prednames else "ptZgen")
         xlabel = styles.xlabels.get(href, href)
+
+    if groups.flavor in ["e", "ee"]:
+        xlabel = xlabel.replace(r"\mu", "e")
 
     fig = plot_tools.makeStackPlotWithRatio(
         histInfo,
@@ -553,6 +568,8 @@ for h in args.hists:
         no_fill=args.noFill,
         no_stack=args.noStack,
         no_ratio=args.noRatio,
+        extra_text=text_pieces,
+        extra_text_loc=(0.05, 0.8),
         density=args.density,
         flow=args.flow,
         cms_decor=args.cmsDecor,
@@ -565,8 +582,11 @@ for h in args.hists:
         noSci=args.noSciy,
         logoPos=args.logoPos,
         width_scale=1.25 if len(h.split("-")) == 1 else 1,
+        legPos=args.legPos,
+        leg_padding=args.legPadding,
         lowerLegCols=args.lowerLegCols,
         lowerLegPos=args.lowerLegPos,
+        lower_leg_padding=args.lowerLegPadding,
         subplotsizes=args.subplotSizes,
     )
 
@@ -594,10 +614,10 @@ for h in args.hists:
         action = lambda x: x
 
     stack_yields = groups.make_yields_df(
-        args.baseName, prednames, norm_proc="Data", action=action
+        args.baseName, prednames, norm_proc="Data", action=base_action
     )
     unstacked_yields = groups.make_yields_df(
-        args.baseName, unstack, norm_proc="Data", action=action
+        args.baseName, unstack, norm_proc="Data", action=base_action
     )
     plot_tools.write_index_and_log(
         outdir,

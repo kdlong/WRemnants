@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from utilities import boostHistHelpers as hh
-from utilities import common, logging
+from utilities import logging, parsing
 from utilities.io_tools import conversion_tools, output_tools
 from utilities.styles import styles
 from wremnants import plot_tools
@@ -30,7 +30,7 @@ poi_type_choices = [
     "helmetapois",
 ]
 
-parser = common.plot_parser()
+parser = parsing.plot_parser()
 parser.add_argument("infile", type=str, help="Combine fitresult file")
 parser.add_argument(
     "--name", type=str, default="Unfolded data", help="Name for main source"
@@ -199,6 +199,9 @@ translate_label = {}
 if args.translate:
     with open(args.translate) as f:
         translate_label = json.load(f)
+    translate = lambda x: styles.translate_html_to_latex(translate_label.get(x, x))
+else:
+    translate = lambda x: x
 
 outdir = output_tools.make_plot_dir(args.outpath, args.outfolder, eoscp=args.eoscp)
 
@@ -363,7 +366,7 @@ def plot_xsec_unfolded(
         ylim = args.ylim
 
     # make plots
-    fig, ax1, ax2 = plot_tools.figureWithRatio(
+    fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         hist_xsec,
         xlabel,
         yLabel,
@@ -373,6 +376,7 @@ def plot_xsec_unfolded(
         automatic_scale=False,
         width_scale=2 if len(axes_names) > 1 else 1,
     )
+    ax2 = ratio_axes[-1]
 
     ax1.hlines(y, edges[:-1], edges[1:], colors="black", label=args.name)
     ax1.bar(
@@ -649,7 +653,7 @@ def plot_uncertainties_unfolded(
         yerr=False,
         histtype="step",
         color="grey",
-        label=translate_label.get("stat", "stat"),
+        label=translate("stat"),
         ax=ax1,
         alpha=1.0,
         # zorder=2,
@@ -691,7 +695,7 @@ def plot_uncertainties_unfolded(
                 f"Systematic {syst} smaller than threshold of {error_threshold}"
             )
             continue
-        name = translate_label.get(syst, syst)
+        name = translate(syst)
         logger.debug(f"Plot systematic {syst} = {name}")
 
         if syst == "err_stat":
@@ -798,6 +802,7 @@ def plot_uncertainties_with_ratio(
     lumi=None,
     channel="ch0",
     normalize=False,
+    error_threshold=0.001,
     flow=False,
 ):
     logger.info(
@@ -899,9 +904,11 @@ def plot_uncertainties_with_ratio(
     rrange = args.rrange
 
     # make plots
-    fig, ax1, ax2 = plot_tools.figureWithRatio(
+    fig, ax1, ratio_axes = plot_tools.figureWithRatio(
         hist_err, xlabel, yLabel, ylim, rlabel, rrange, logy=logy, width_scale=2
     )
+    ax2 = ratio_axes[-1]
+
     hep.histplot(
         [hist_err, hist_err_ref],
         yerr=False,
@@ -943,8 +950,8 @@ def plot_uncertainties_with_ratio(
             color=["grey", "grey"],
             linestyle=["solid", "dashed"],
             label=[
-                f"{translate_label.get('stat', 'stat')} ({args.name})",
-                f"{translate_label.get('stat', 'stat')} ({args.refName})",
+                f"{translate('stat')} ({args.name})",
+                f"{translate('stat')} ({args.refName})",
             ],
             ax=ax1,
             alpha=1.0,
@@ -995,7 +1002,7 @@ def plot_uncertainties_with_ratio(
                     f"Systematic {syst} smaller than threshold of {error_threshold}"
                 )
                 continue
-            name = translate_label.get(syst, syst)
+            name = translate(syst)
             logger.debug(f"Plot systematic {syst} = {name}")
 
             if syst == "err_stat":

@@ -194,7 +194,13 @@ labels = labels + [
     "" for i, l in enumerate(labels) if i != idx_unfolded for _ in range(2)
 ]
 linestyles = linestyles + [
-    l for l in ["dotted", "dashdot", "dashed", "dotted"] for _ in range(2)
+    # l for l in ["dotted", "dashdot", "dashed", "dotted"] for _ in range(2)
+    l
+    for l in [
+        "solid",
+    ]
+    * 4
+    for _ in range(2)
 ]
 linestyles = linestyles[: len(labels)]
 
@@ -229,19 +235,15 @@ else:
 if args.twoRatios:
     # make two ratios
     subplotsizes = [3, 2, 2]
+    ref = 2 if args.ratioToData else 3
     rlabel = [
-        "Ratio to\n" + labels[3] + "fit",
-        "Ratio to\n " + ("data" if unfolded_data and args.ratioToData else "prefit"),
+        "Ratio to\n" + ("data" if args.ratioToData else labels[ref] + "fit"),
+        # "Ratio to\n " + ("data" if unfolded_data and args.ratioToData else "prefit"),
+        "Ratio to\nprefit",
     ]
-    midratio_idxs = [
-        3,
-        1,
-        2,
-        6,
-        7,
-        8,
-        9,
-    ]
+    midratio_idxs = [ref]
+    midratio_idxs.extend([i for i in range(1, 10) if i not in [ref, 4, 5]])
+    print(midratio_idxs)
     if len(args.rrange) == 2:
         rrange = [args.rrange, args.rrange]
     elif len(args.rrange) == 4:
@@ -288,7 +290,7 @@ fig = plot_tools.makePlotWithRatioToRef(
     cms_label=args.cmsDecor,
     legtext_size=args.legSize,
     dataIdx=idx_unfolded,
-    ratio_to_data=args.ratioToData,
+    # ratio_to_data=args.ratioToData,
     width_scale=1.25,
     subplotsizes=subplotsizes,
     no_sci=args.noSciy,
@@ -307,7 +309,7 @@ if args.ptll_fit:
     name += "_ptll"
 if args.ptll_yll_fit:
     name += "_ptllyll"
-name += "_PrefitRatio"
+name += "_PrefitRatio" if not args.ratioToData else "_dataRatio"
 if args.postfix:
     name += f"_{args.postfix}"
 if args.cmsDecor == "Preliminary":

@@ -91,6 +91,7 @@ def plotImpacts(
     asym_pulls=False,
     include_ref=False,
     ref_name="ref.",
+    nominal_name="",
     show_numbers=False,
     show_legend=True,
     legend_pos="bottom",
@@ -316,7 +317,7 @@ def plotImpacts(
                     thickness=1.5,
                     width=5,
                 ),
-                name="Pulls ± Constraints",
+                name=f" {nominal_name}" if nominal_name else "Pull ± Constraint",
                 showlegend=include_ref,
             ),
             row=1,
@@ -329,9 +330,21 @@ def plotImpacts(
                     x=2 * df["constraint_ref"],
                     y=labels,
                     orientation="h",
-                    **get_marker(filled=False, color="black"),
-                    name=f"Pulls ± Constraints ({ref_name})",
+                    **get_marker(filled=True, color="#5790FC", opacity=0.5),
+                    name=f"{ref_name}" if ref_name else "Pulls ± Constraints",
                     showlegend=True,
+                ),
+                row=1,
+                col=ncols,
+            )
+            fig.add_trace(
+                go.Bar(
+                    base=df["pull_ref"] - df["constraint_ref"],
+                    x=2 * df["constraint_ref"],
+                    y=labels,
+                    orientation="h",
+                    **get_marker(filled=False, color="#5790FC"),
+                    showlegend=False,
                 ),
                 row=1,
                 col=ncols,
@@ -377,6 +390,9 @@ def plotImpacts(
                     col=ncols,
                 )
         max_pull = np.max(df["abspull"])
+        if "abspull_ref" in df.columns:
+            max_pull = max(*[max_pull, *df["abspull_ref"]])
+
         if pullrange is None:
             # Round up to nearest 0.5, add 1.1 for display
             pullrange = 0.5 * np.ceil(max_pull) + 1.1
@@ -384,7 +400,7 @@ def plotImpacts(
         spacing = min(1, np.ceil(pullrange) / 2.0)
         if spacing > 0.5 * pullrange:  # make sure to have at least two ticks
             spacing /= 2.0
-        xaxis_title = "Nuisance parameter"
+        xaxis_title = "Nuisance parameter" if impacts else "Pull ± Constraint"
         #  (
         #     "θ - θ<sub>0</sub> <span style='color:blue'>θ - θ<sub>0</sub> / √(σ<sup>2</sup>-σ<sub>0</sub><sup>2</sup>) </span>"
         #     if asym_pulls
@@ -518,6 +534,11 @@ def parseArgs():
         "--refName",
         type=str,
         help="Name of reference input for legend",
+    )
+    parser.add_argument(
+        "--nominalName",
+        type=str,
+        help="Name of nominal input for legend",
     )
     parser.add_argument(
         "-s",
@@ -875,8 +896,10 @@ def producePlots(
             asym_pulls=args.diffPullAsym,
             include_ref=include_ref,
             ref_name=args.refName,
+            nominal_name=args.nominalName,
             show_numbers=args.showNumbers,
-            show_legend=not group and not args.noImpacts,
+            show_legend=args.referenceFile is not None
+            or (not group and not args.noImpacts),
         )
 
         if args.num and args.num < df.size:

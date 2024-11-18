@@ -350,7 +350,7 @@ def make_plot(
                     horizontalalignment="left",
                     verticalalignment="top",
                     transform=ax1.transAxes,
-                    fontsize=20 * args.scaleleg * scale,
+                    fontsize=20 * scale,
                 )
 
         if add_ratio:

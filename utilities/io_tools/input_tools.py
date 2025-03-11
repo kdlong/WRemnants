@@ -193,6 +193,7 @@ def read_dyturbo_vars_hist(base_name, var_axis=None, axes=("Y", "qT"), charge=No
 
     # map from scetlib fo variations naming to dyturbo naming
     # *FIXME* this is sensitive to presence or absence of trailing zeros for kappas
+    # NOTE: kappaFO varies muR and muF together, muf varies only muF
     scales_map = {
         "pdf0": "mur1-muf1",
         "kappaFO0.5-kappaf2.": "murH-muf1",
@@ -228,6 +229,70 @@ def read_dyturbo_vars_hist(base_name, var_axis=None, axes=("Y", "qT"), charge=No
         var_hist[..., i] = h.view()
 
     return var_hist
+
+
+def read_nnlojet_file(filename, axnames=["qT"], all_scales=True, other_axes=[]):
+    data = read_text_data(filename)
+
+    edges = np.append(data[:, 0], data[-1, 2])
+    step = data[0, 2] - data[0, 0]
+    if np.all(edges[1:] - edges[:-1] == step):
+        ax = hist.axis.Regular(len(edges) - 1, edges[0], edges[-1], name=axnames[0])
+    else:
+        ax = hist.axis.Variable(edges, name=axnames[0])
+
+    # NOTE: The order of the scale variations in NNLOjet is set in the config file.
+    # This assumes that the "desired" order has been set there
+    # Very confusingly kappaFO varies muR and muF together. muf is a variation (multiplicative) of mu_F.
+    # See the read_dyturbo_vars_hist for the correct mapping
+    if all_scales:
+        var_ax = hist.axis.StrCategory(
+            [
+                "pdf0",
+                "kappaFO0.5-kappaf2.",
+                "kappaFO2.-kappaf0.5",
+                "kappaf0.5",
+                "kappaf2.",
+                "kappaFO0.5",
+                "kappaFO2.",
+            ],
+            name="vars",
+        )
+        other_axes = [*other_axes, var_ax]
+
+    h = hist.Hist(ax, *other_axes, storage=hist.storage.Weight())
+    h[...] = data[:, 3:].reshape(*h.shape, 2)
+    return h * 1e-3
+
+
+def read_nnlojet_ybin(refname, ybins):
+    format_decimal = lambda x: (
+        "0" if x == 0 else f"{round(x, 1+(x % 1 in [0.25, 0.75]))}".replace(".", "p")
+    )
+    yax = hist.axis.Variable(ybins, name="y")
+    return read_nnlojet_file(
+        f"{refname}__{format_decimal(ybins[0])}__{format_decimal(ybins[1])}.dat",
+        other_axes=[yax],
+    )
+
+
+def read_nnlojet_pty_hist(
+    reffile,
+    ybins=np.append(
+        np.append(np.array((-5.0, -4.0)), np.arange(-3.5, 3.75, 0.25)),
+        np.array((4.0, 5.0)),
+    ),
+):
+
+    h = read_nnlojet_ybin(reffile, ybins[:2])
+
+    for pair in zip(ybins[1:-1], ybins[2:]):
+        yax = hist.axis.Variable(pair, name="y")
+        h = hh.concatenateHists(
+            h, read_nnlojet_ybin(reffile, pair), allowBroadcast=False
+        )
+
+    return h
 
 
 def read_dyturbo_hist(filenames, path="", axes=("y", "pt"), charge=None, coeff=None):

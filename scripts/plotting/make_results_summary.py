@@ -1,8 +1,8 @@
+import combinetf2.io_tools
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib import ticker
 
-import combinetf2.io_tools
 from utilities import parsing
 from wremnants import plot_tools
 from wums import output_tools
@@ -56,6 +56,7 @@ cms_res = combinetf2.io_tools.read_groupunc_df(
 )
 cms_res["color"] = "#E42536"
 cms_res["Reference"] = "This work"
+cms_res["value"] = 0.0
 dfw_cms = pd.concat((dfw, cms_res), ignore_index=True)
 
 eoscp = output_tools.is_eosuser_path(args.outpath)
@@ -120,6 +121,8 @@ for i, row in dfw_cms.iterrows():
         annotation_clip=False,
         color=row.loc["color"],
     )  # , weight=600)
+    if row.loc["Name"] in ["CMS"]:
+        continue
     if row.loc["Name"] in ["CMS", "CDF", "ATLAS", "PDG Average"]:
         label = rf"{row.loc['value']:.1f} $\pm$ {round(row.loc['err_total'], 1):.1f}"
     else:

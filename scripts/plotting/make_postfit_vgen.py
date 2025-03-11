@@ -1,11 +1,11 @@
 import pickle
 
+import combinetf2.io_tools
 import hist
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import combinetf2.io_tools
 import narf
 from utilities import parsing
 from utilities.io_tools import input_tools, output_tools
@@ -265,7 +265,11 @@ if args.xlim:
 
 hists = hists_nom + hists_err
 
-xlabels = {"absYVgen": r"|\mathit{y}^{V}|", "ptVgen": r"\mathit{p}_{T}^{V}"}
+xlabels = {
+    "absYVgen": r"|\mathit{y}^{V}|",
+    "ptVgen": r"\mathit{p}_{T}^{V}",
+    "pt": r"\mathit{p}_{T}^{\ell}",
+}
 xlabel = xlabels[args.obs]
 
 ylabel = r"$d\sigma"
@@ -277,7 +281,7 @@ else:
     xlabel = r"$" + xlabel.replace("^{V}", "^{Z}") + "$"
 # ylabel += r"\ cross\ section\ "
 
-if args.obs in ["ptVgen"]:
+if args.obs in ["ptVgen", "pt"]:
     xlabel += " (GeV)"
     ylabel += r"\ (pb\,/\,GeV)$"
 else:

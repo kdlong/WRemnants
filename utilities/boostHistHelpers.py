@@ -265,7 +265,7 @@ def concatenateHists(h1, h2, allowBroadcast=True, by_ax_name=True, flow=False):
                 )
             else:
                 raise ValueError(
-                    f"Cannot concatenate hists with inconsistent axes: {ax1.name} and {ax2.name}"
+                    f"Cannot concatenate hists with inconsistent axes: {ax1.name}: ({ax1.edges}) and {ax2.name}: ({ax2.edges})"
                 )
 
     newh = hist.Hist(*axes, storage=h1.storage_type())

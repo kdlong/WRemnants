@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utilities import common
-from utilities.io_tools import input_tools, output_tools
-from wremnants import plot_tools, theory_corrections
+from utilities.io_tools import input_tools
+from wremnants import theory_corrections
 from wums import boostHistHelpers as hh
-from wums import logging
+from wums import logging, output_tools, plot_tools
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -32,7 +32,13 @@ parser.add_argument(
     "-g",
     "--generator",
     type=str,
-    choices=["dyturbo", "scetlib", "scetlib_dyturbo", "matrix_radish"],
+    choices=[
+        "dyturbo",
+        "scetlib",
+        "scetlib_dyturbo",
+        "scetlib_nnlojet",
+        "matrix_radish",
+    ],
     required=True,
     help="Generator used to produce correction hist",
 )
@@ -106,7 +112,10 @@ def read_corr(procName, generator, corr_files):
     charge = 0 if procName[0] == "Z" else (1 if "Wplus" in procName else -1)
     corr_file = corr_files[0]
     if "scetlib" in generator:
-        if "dyturbo" in generator:
+
+        tools = generator.split("_")
+        if len(tools) > 1:
+            fo_generator = tools[1]
             scetlib_files = [x for x in corr_files if pathlib.Path(x).suffix == ".pkl"]
             if len(scetlib_files) != 2:
                 raise ValueError(
@@ -118,15 +127,15 @@ def read_corr(procName, generator, corr_files):
             resumf = scetlib_files[~nnlo_sing_idx]
             nnlo_singf = scetlib_files[nnlo_sing_idx]
 
-            dyturbo_files = [x for x in corr_files if pathlib.Path(x).suffix == ".txt"]
-            if len(dyturbo_files) != 1:
+            fo_files = [x for x in corr_files if pathlib.Path(x).suffix != ".pkl"]
+            if len(fo_files) != 1:
                 raise ValueError(
-                    "scetlib_dyturbo correction requires one DYTurbo file (fixed order contribution)"
+                    f"{generator} correction requires one fixed order file! found {len(fo_files)}"
                 )
 
-            numh = input_tools.read_matched_scetlib_dyturbo_hist(
-                resumf, nnlo_singf, dyturbo_files[0], args.axes, charge=charge
-            )
+            fo_func = getattr(input_tools, f"read_matched_scetlib_{fo_generator}_hist")
+
+            numh = fo_func(resumf, nnlo_singf, fo_files[0], args.axes, charge=charge)
         else:
             nons = "auto"
             if not os.path.isfile(corr_file.replace(".", "_nons.")):
@@ -270,7 +279,7 @@ output_dict = {
 }
 
 output_tools.write_theory_corr_hist(
-    outfile, args.proc.upper(), output_dict, args, meta_dict
+    outfile, args.proc.upper(), output_dict, common.base_dir, args, meta_dict
 )
 
 logger.info("Correction binning is")
@@ -290,6 +299,7 @@ logger.info(f"Normalization change (corr/minnlo) is {norm_ratio}")
 if args.plotdir:
     colors = {
         "scetlib_dyturbo": "mediumpurple",
+        "scetlib_nnlojet": "pink",
         "dyturbo": "darkblue",
         "matrix_radish": "green",
     }
@@ -317,7 +327,7 @@ if args.plotdir:
         )
         plot_name = f"corr2D_{generator}_MiNNLO_{proc}"
         plot_tools.save_pdf_and_png(outdir, plot_name)
-        plot_tools.write_index_and_log(
+        output_tools.write_index_and_log(
             outdir, plot_name, args=args, analysis_meta_info=meta_dict
         )
 
@@ -348,7 +358,7 @@ if args.plotdir:
             )
             plot_name = f"{varm}_{generator}_MiNNLO_{proc}"
             plot_tools.save_pdf_and_png(outdir, plot_name)
-            plot_tools.write_index_and_log(
+            output_tools.write_index_and_log(
                 outdir, plot_name, args=args, analysis_meta_info=meta_dict
             )
     if output_tools.is_eosuser_path(args.plotdir) and args.eoscp:

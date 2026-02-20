@@ -110,7 +110,7 @@ def write_new_grids(
     for l in inn.readlines():
         if l.find("SetDesc:") >= 0:
             out.write(
-                f'SetDesc: "{pdf.pdf_name} modified by CMS mW postfit covariance, with prefit pdf unc scaled by {pdf_scale}"\n'
+                f'SetDesc: "{pdf.pdf_name} modified by CMS mW postfit covariance, with prefit pdf unc scaled by {pdf_scale}."\n'
             )
         elif l.find("NumMembers:") >= 0:
             out.write(f"NumMembers: {nhess + 1}\n")
@@ -170,6 +170,9 @@ if pdf_scale == -1:
     logger.info(f"Using default inflation factor from theory_tools: {pdf_scale}")
 
 pdf_lha = lhapdf.getPDFSet(pdf_name)
+print(
+    f'\n PDF used as pseudodata: "{lhapdf.getPDFSet(theory_tools.pdfMap['msht20']["lha_name"])} "\n'
+    )
 errors = pdf_lha.errorInfo
 
 if errors.coreType not in ["hessian", "symmhessian"]:

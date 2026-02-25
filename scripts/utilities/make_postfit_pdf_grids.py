@@ -164,6 +164,9 @@ logger.info(f"Scaling PDF uncertainties by {pdf_scale}")
 # TODO: Need to scale back at the end to get 95% CL for consistency?
 
 pdf_lha = lhapdf.getPDFSet(pdf_name)
+print(
+    f'\n PDF used as pseudodata: "{lhapdf.getPDFSet(theory_tools.pdfMap['msht20']["lha_name"])} "\n'
+    )
 errors = pdf_lha.errorInfo
 
 if errors.coreType not in ["hessian", "symmhessian"]:

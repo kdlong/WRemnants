@@ -15,6 +15,23 @@ from wums import logging
 logger = logging.child_logger(__name__)
 
 
+def big_matrix(gridlist):
+    """
+    Matrix of (member_i - central) for the grids in gridlist, with gridlist[0] the central.
+    Replaces mc2hlib.lh.big_matrix, which passes one more key than objects to
+    pd.concat and so fails with pandas >= 3.
+    """
+    import pandas as pd
+
+    central_value = gridlist[0]
+    X = pd.concat(gridlist[1:], axis=1, keys=range(1, len(gridlist))).subtract(
+        central_value, axis=0
+    )
+    if np.any(X.isnull()) or X.shape[0] != len(central_value):
+        raise ValueError("Incompatible grid specifications")
+    return X
+
+
 class PostfitPdfHelper(object):
     def __init__(self):
         pass
@@ -64,7 +81,7 @@ class PostfitPdfHelper(object):
         headers, grids = lh.load_all_replicas(base_pdf, central_pdf_path)
 
         # Big matrix is hessian_i - central, scaled up by pdf_scale
-        matrix = lh.big_matrix(grids[: self.n_hessian + 1]) * self.pdf_scale
+        matrix = big_matrix(grids[: self.n_hessian + 1]) * self.pdf_scale
 
         if not self.symm_errors:
             logger.info(

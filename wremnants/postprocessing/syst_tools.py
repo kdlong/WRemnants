@@ -995,22 +995,29 @@ def symmetrize_unc_matrix(matrix, labels, symm_type):
                 f"Number of nuisances should be half the number of eigenvectors when using average symmetrization! Found {len(labels)} nuisances and {values.shape[-1]} symmetric variations. Please check the input matrix and labels."
             )
 
-        values[:, : len(labels)] = symm_avg
+        symm_values = symm_avg
+    else:
+        avg_idx = np.char.find(labels, "Avg") != -1
+        symm_diff = 0.5 * np.sqrt(3) * (values[:, ::2] + values[:, 1::2])
 
-        return matrix.iloc[:, : len(labels)]
+        if np.count_nonzero(avg_idx) != symm_avg.shape[1]:
+            raise ValueError(
+                f"Found inconsistent number of Avg nuisances (Avg: {np.count_nonzero(avg_idx)}, Symm: {symm_avg.shape[1]}, Diff {symm_diff.shape[1]}) for quadratic symmetrization."
+            )
 
-    avg_idx = np.char.find(labels, "Avg") != -1
-    symm_diff = 0.5 * np.sqrt(3) * (values[:, ::2] + values[:, 1::2])
+        symm_values = np.empty_like(values)
+        symm_values[:, avg_idx] = symm_avg
+        symm_values[:, ~avg_idx] = symm_diff
 
-    if np.count_nonzero(avg_idx) != symm_avg.shape[1]:
-        raise ValueError(
-            f"Found inconsistent number of Avg nuisances (Avg: {np.count_nonzero(avg_idx)}, Symm: {symm_avg.shape[1]}, Diff {symm_diff.shape[1]}) for quadratic symmetrization."
+    # Build a new object rather than writing in place: under pandas copy-on-write,
+    # DataFrame.values can be a copy and in-place writes would be silently lost
+    if hasattr(matrix, "iloc"):
+        return type(matrix)(
+            symm_values,
+            index=matrix.index,
+            columns=matrix.columns[: symm_values.shape[-1]],
         )
-
-    values[:, avg_idx] = symm_avg
-    values[:, ~avg_idx] = symm_diff
-
-    return matrix
+    return symm_values
 
 
 def fake_nonclosure_byAxis(

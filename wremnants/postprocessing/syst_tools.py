@@ -1001,15 +1001,14 @@ def symmetrize_unc_matrix(matrix, labels, symm_type):
 
     avg_idx = np.char.find(labels, "Avg") != -1
     symm_diff = 0.5 * np.sqrt(3) * (values[:, ::2] + values[:, 1::2])
-    symm_diff = 0
-
-    values[:, avg_idx] = symm_avg
-    values[:, ~avg_idx] = symm_diff
 
     if np.count_nonzero(avg_idx) != symm_avg.shape[1]:
         raise ValueError(
             f"Found inconsistent number of Avg nuisances (Avg: {np.count_nonzero(avg_idx)}, Symm: {symm_avg.shape[1]}, Diff {symm_diff.shape[1]}) for quadratic symmetrization."
         )
+
+    values[:, avg_idx] = symm_avg
+    values[:, ~avg_idx] = symm_diff
 
     return matrix
 

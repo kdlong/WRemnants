@@ -5,7 +5,6 @@ import h5py
 import lhapdf
 import numpy as np
 from mc2hlib import lh
-from mc2hlib.common import load_pdf
 
 from rabbit import io_tools
 from wremnants.postprocessing import syst_tools
@@ -71,17 +70,21 @@ class PostfitPdfHelper(object):
         # Apply sqrt(eigenvalues) to the rotation matrix
         return V * np.sqrt(np.maximum(eigv, 0))
 
-    def get_pdf_matrix(self, Q=100):
+    def get_pdf_matrix(self):
         """
         Load the base PDF grids, build the scaled Hessian difference matrix,
         and apply symmetrization if needed. Returns (matrix, grids, central_pdf_path).
         """
         central_pdf_path = "/".join([lhapdf.paths()[0], self.pdf_name, self.pdf_name])
-        base_pdf, fl, xgrid = load_pdf(self.pdf_name, Q, self.max_nf, self.photon)
-        headers, grids = lh.load_all_replicas(base_pdf, central_pdf_path)
+        # Read every member's grid values from file. Evaluating them with LHAPDF
+        # (as mc2hlib's load_all_replicas does) gives the upper-subgrid value at
+        # subgrid boundaries, which is wrong for PDFs discontinuous at thresholds
+        grids = [
+            lh.load_replica_2(i, central_pdf_path)[1] for i in range(self.n_hessian + 1)
+        ]
 
         # Big matrix is hessian_i - central, scaled up by pdf_scale
-        matrix = big_matrix(grids[: self.n_hessian + 1]) * self.pdf_scale
+        matrix = big_matrix(grids) * self.pdf_scale
 
         if not self.symm_errors:
             logger.info(
@@ -93,10 +96,10 @@ class PostfitPdfHelper(object):
 
         return matrix, grids, central_pdf_path
 
-    def compute_postfit_matrix(self, Q=100):
+    def compute_postfit_matrix(self):
         """Compute the postfit PDF matrix and new central value."""
         K = self.get_postfit_eigenvectors()
-        matrix, grids, central_pdf_path = self.get_pdf_matrix(Q)
+        matrix, grids, central_pdf_path = self.get_pdf_matrix()
         new_central = grids[0] + np.sum(self.pdf_pulls * matrix, axis=1)
         postfit_matrix = matrix.dot(K).add(new_central, axis=0)
         return postfit_matrix, new_central, central_pdf_path
